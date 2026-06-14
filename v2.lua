@@ -1,5 +1,5 @@
--- [[ ROMEOZACH SC - Project Delta v7 (Syntax Restored & Calibrated Final) ]]
--- Author: RomeoZach (Fixed Compile Errors, Safetied Drawing Lib & Clean Variables)
+-- [[ ROMEOZACH SC - Project Delta v7 Restored Uncut ]]
+-- Author: RomeoZach (Fixed Compile Syntax & Multi-Line Structure)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -54,8 +54,68 @@ local WallbangableMaterials = {
 local visCheckParams = RaycastParams.new()
 visCheckParams.FilterType = Enum.RaycastFilterType.Exclude
 visCheckParams.IgnoreWater = true
+-- // UTAS 1: Ambil Kecepatan Peluru Dinamis
+local function GetBulletSpeed()
+    local defaultSpeed = 1500
+    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if tool then
+        local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings")
+        if settingsModule and settingsModule:IsA("ModuleScript") then
+            local success, data = pcall(require, settingsModule)
+            if success and type(data) == "table" then
+                return data.BulletSpeed or data.MuzzleVelocity or defaultSpeed
+            end
+        end
+    end
+    return defaultSpeed
+end
 
--- // UI Creation
+-- // UTAS 2: Fungsi Vis-Check Perbaikan Skema Warna
+local function checkTargetVisibility(targetPart)
+    if not ESP_Config.VisCheck then return "Visible", Color3.fromRGB(255, 255, 255) end
+    local lpChar = LocalPlayer.Character
+    if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", Color3.fromRGB(80, 80, 80) end
+
+    local origin = Camera.CFrame.Position
+    local direction = targetPart.Position - origin
+    visCheckParams.FilterDescendantsInstances = {lpChar, Camera}
+    local raycastResult = workspace:Raycast(origin, direction, visCheckParams)
+
+    if not raycastResult or raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
+        return "Visible", Color3.fromRGB(255, 255, 255)
+    end
+    if WallbangableMaterials[raycastResult.Material] or raycastResult.Instance.Transparency > 0.5 or not raycastResult.Instance.CanCollide then
+        return "Wallbang", Color3.fromRGB(255, 255, 255)
+    else
+        return "Blocked", Color3.fromRGB(80, 80, 80)
+    end
+end
+
+-- // UTAS 3: Seleksi Target Prioritas Kursor Layar 2D
+local function GetBestTargetInFOV()
+    local bestChar, shortestPixelDist = nil, ESP_Config.FovRadius
+    local mousePos = UserInputService:GetMouseLocation()
+    local lpChar = LocalPlayer.Character
+
+    for entity, _ in pairs(ESP_Objects) do
+        local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
+        if char and char ~= lpChar and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") and char.Humanoid.Health > 0 then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
+            if onScreen then
+                local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                if screenDist < shortestPixelDist then
+                    local visStatus, _ = checkTargetVisibility(char.Head)
+                    if visStatus == "Visible" or visStatus == "Wallbang" then
+                        shortestPixelDist = screenDist; bestChar = char
+                    end
+                end
+            end
+        end
+    end
+    return bestChar
+end
+
+-- // UI Creation Framework
 if CoreGui:FindFirstChild("RomeoZach_Ui") then CoreGui.RomeoZach_Ui:Destroy() end
 local RomeoZachUI = Instance.new("ScreenGui", CoreGui)
 RomeoZachUI.Name = "RomeoZach_Ui"; RomeoZachUI.ResetOnSpawn = false
@@ -77,6 +137,7 @@ local Container = Instance.new("Frame", MainFrame)
 Container.Size = UDim2.new(1, -20, 1, -45); Container.Position = UDim2.new(0, 10, 0, 35); Container.BackgroundTransparency = 1
 local UIListLayout = Instance.new("UIListLayout", Container)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder; UIListLayout.Padding = UDim.new(0, 10)
+
 local function CreateToggle(labelText, configKey)
     local Frame = Instance.new("Frame", Container)
     Frame.Size = UDim2.new(1, 0, 0, 40); Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27); Frame.BorderSizePixel = 0
@@ -166,72 +227,12 @@ end
 local FpsLabel = CreateHudLabel("FPS"); local PingLabel = CreateHudLabel("Ping"); local TimeLabel = CreateHudLabel("Time")
 local fpsCount = 0
 task.spawn(function() while task.wait(1) do FpsLabel.Text = string.format("FPS: %d", fpsCount); fpsCount = 0 end end)
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if not gp and input.KeyCode == Enum.KeyCode.M then MainFrame.Visible = not MainFrame.Visible end
     if not gp and input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = true end
 end)
 UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = false; CurrentTargetChar = nil end end)
-
--- // UTAS 1: Ambil Kecepatan Peluru Dinamis
-local function GetBulletSpeed()
-    local defaultSpeed = 1500
-    local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings")
-        if settingsModule and settingsModule:IsA("ModuleScript") then
-            local success, data = pcall(require, settingsModule)
-            if success and type(data) == "table" then
-                return data.BulletSpeed or data.MuzzleVelocity or defaultSpeed
-            end
-        end
-    end
-    return defaultSpeed
-end
-
--- // UTAS 2: Fungsi Vis-Check Perbaikan Skema Warna (FIXED SYNTAX)
-local function checkTargetVisibility(targetPart)
-    if not ESP_Config.VisCheck then return "Visible", Color3.fromRGB(255, 255, 255) end
-    local lpChar = LocalPlayer.Character
-    if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", Color3.fromRGB(80, 80, 80) end
-
-    local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    visCheckParams.FilterDescendantsInstances = {lpChar, Camera}
-    local raycastResult = workspace:Raycast(origin, direction, visCheckParams)
-
-    if not raycastResult or raycastResult.Instance:IsDescendantOf(targetPart.Parent) then
-        return "Visible", Color3.fromRGB(255, 255, 255)
-    end
-    if WallbangableMaterials[raycastResult.Material] or raycastResult.Instance.Transparency > 0.5 or not raycastResult.Instance.CanCollide then
-        return "Wallbang", Color3.fromRGB(255, 255, 255)
-    else
-        return "Blocked", Color3.fromRGB(80, 80, 80)
-    end
-end
-
--- // UTAS 3: Seleksi Target Prioritas Kursor Layar 2D
-local function GetBestTargetInFOV()
-    local bestChar, shortestPixelDist = nil, ESP_Config.FovRadius
-    local mousePos = UserInputService:GetMouseLocation()
-    local lpChar = LocalPlayer.Character
-
-    for entity, _ in pairs(ESP_Objects) do
-        local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
-        if char and char ~= lpChar and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") and char.Humanoid.Health > 0 then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(char.Head.Position)
-            if onScreen then
-                local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                if screenDist < shortestPixelDist then
-                    local visStatus, _ = checkTargetVisibility(char.Head)
-                    if visStatus == "Visible" or visStatus == "Wallbang" then
-                        shortestPixelDist = screenDist; bestChar = char
-                    end
-                end
-            end
-        end
-    end
-    return bestChar
-end
 
 local function ApplyWeaponCham(part)
     if part:IsA("BasePart") and not part:FindFirstChild("Cham_Adornment") then
@@ -241,7 +242,7 @@ local function ApplyWeaponCham(part)
         table.insert(WeaponConnections, {Adornment = adorn, Part = part, OrigMat = part.Material}); part.Material = Enum.Material.Neon
     end
 end
-
+-- FIX BUG BYPASS: Penapis otomatis jika eksekutor tidak mendukung library Drawing
 local function CreateCrosshair()
     if not Drawing or type(Drawing) ~= "table" or not Drawing.new then return end
     pcall(function()
@@ -349,9 +350,7 @@ task.spawn(function()
                     local dist = lpHead and (lpHead.Position - obj.Head.Position).Magnitude or math.huge
                     if (obj.Humanoid.Health > 0 and dist <= 893) or (obj.Humanoid.Health <= 0 and dist <= 250) then
                         if not ESP_Objects[obj] then CreateESP(obj, false) end
-                    else 
-                        if ESP_Objects[obj] then RemoveESP(obj) end 
-                    end
+                    else if ESP_Objects[obj] then RemoveESP(obj) end end
                 end
             end
         end

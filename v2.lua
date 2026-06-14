@@ -1,20 +1,17 @@
 -- [[ ROMEOZACH SC - Project Delta v7 (Kinematics & Dual-Scan Optimization) ]]
 -- Author: RomeoZach (Fixed Compile Syntax & Multi-Line Structure)
 
-local Service = setmetatable({}, {
-    __index = function(t, k)
-        local s, res = pcall(game.GetService, game, k)
-        return s and res or nil
-    end
-})
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 
-local Players = Service.Players
-local RunService = Service.RunService
-local TweenService = Service.TweenService
-local UserInputService = Service.UserInputService
-local Lighting = Service.Lighting
-local Stats = Service.Stats
-local LocalPlayer = Players and Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- // Configuration State
@@ -73,8 +70,13 @@ local visCheckParams = RaycastParams.new()
 visCheckParams.FilterType = Enum.RaycastFilterType.Exclude
 visCheckParams.IgnoreWater = true
 
-local PlayerGui = LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 15)
-if PlayerGui and PlayerGui:FindFirstChild("RomeoZach_Ui") then 
+-- // FIX ERROR LINE 1: Proteksi Keamanan Pemuatan Interface CoreGui
+pcall(function()
+    if CoreGui:FindFirstChild("RomeoZach_Ui") then 
+        CoreGui.RomeoZach_Ui:Destroy() 
+    end
+end)
+if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
     pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
 end
 
@@ -83,6 +85,25 @@ RomeoZachUI.Name = "RomeoZach_Ui"
 RomeoZachUI.ResetOnSpawn = false
 RomeoZachUI.Parent = PlayerGui
 
+-- Mengamankan fungsi protect_gui milik Synapse/Exploit agar tidak memicu nil value crash
+pcall(function()
+    if syn and syn.protect_gui then 
+        syn.protect_gui(RomeoZachUI) 
+    end
+end)
+
+pcall(function()
+    if gethui then
+        RomeoZachUI.Parent = gethui()
+    else
+        RomeoZachUI.Parent = CoreGui
+    end
+end)
+
+-- Fallback aman: Jika CoreGui diproteksi ketat oleh Roblox, pindahkan parent ke PlayerGui bawaan lu
+if not RomeoZachUI.Parent then
+    RomeoZachUI.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 local MainFrame = Instance.new("Frame", RomeoZachUI)
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 320, 0, 610) -- Tinggi diubah ke 610 agar muat tombol analitik baru

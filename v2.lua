@@ -1,5 +1,5 @@
--- [[ ROMEOZACH SC - Project Delta v7 (Kinematics & Dual-Scan Optimization) ]]
--- Author: RomeoZach (Fixed Syntax & Integrated Ballistic UI)
+-- [[ ROMEOZACH SC - Project Delta v7 (Syntax Fixed & Executor Bypass) ]]
+-- Author: RomeoZach (Fixed Compile Errors & Safetied Drawing Lib)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -243,17 +243,22 @@ local function ApplyWeaponCham(part)
     end
 end
 
+-- FIX BUG BYPASS: Penapis otomatis jika eksekutor tidak mendukung library Drawing
 local function CreateCrosshair()
-    if not Drawing then return end
-    CrosshairLines = {Horizontal = Drawing.new("Line"), Vertical = Drawing.new("Line")}
-    for _, line in pairs(CrosshairLines) do line.Thickness = 1.5; line.Color = Color3.fromRGB(255, 255, 255); line.Transparency = 1; line.Visible = false end
+    if not Drawing or type(Drawing) ~= "table" or not Drawing.new then return end
+    pcall(function()
+        CrosshairLines = {Horizontal = Drawing.new("Line"), Vertical = Drawing.new("Line")}
+        for _, line in pairs(CrosshairLines) do line.Thickness = 1.5; line.Color = Color3.fromRGB(255, 255, 255); line.Transparency = 1; line.Visible = false end
+    end)
 end
 
 local function CreateBulletTracer(startPos, endPos)
-    if not Drawing or not ESP_Config.Enabled or not ESP_Config.BulletTracers then return end
-    local tracer = Drawing.new("Line")
-    tracer.Thickness = 2; tracer.Color = ESP_Config.BulletColor; tracer.Transparency = 1; tracer.Visible = false
-    table.insert(ActiveBulletTracers, {Tracer = tracer, StartPos = startPos, EndPos = endPos, LifeTime = 0.4, SpawnTime = tick()})
+    if not Drawing or type(Drawing) ~= "table" or not Drawing.new or not ESP_Config.Enabled or not ESP_Config.BulletTracers then return end
+    pcall(function()
+        local tracer = Drawing.new("Line")
+        tracer.Thickness = 2; tracer.Color = ESP_Config.BulletColor; tracer.Transparency = 1; tracer.Visible = false
+        table.insert(ActiveBulletTracers, {Tracer = tracer, StartPos = startPos, EndPos = endPos, LifeTime = 0.4, SpawnTime = tick()})
+    end)
 end
 
 local function ChamWeapon(tool)
@@ -296,7 +301,7 @@ local function RemoveESP(entity)
         local box = ESP_Objects[entity]
         if box.Highlight then box.Highlight:Destroy() end
         if box.Billboard then box.Billboard:Destroy() end
-        if box.TracerLine then box.TracerLine:Remove() end
+        if box.TracerLine then pcall(function() box.TracerLine:Remove() end) end
         if box.Connection then box.Connection:Disconnect() end
         ESP_Objects[entity] = nil
     end
@@ -324,8 +329,10 @@ local function CreateESP(entity, isPlayer)
         distTxt.Size = UDim2.new(1, 0, 0, 20); distTxt.Position = UDim2.new(0, 0, 0, 35); distTxt.BackgroundTransparency = 1
         distTxt.Text = "0 studs"; distTxt.TextColor3 = ESP_Config.Color; distTxt.TextSize = ESP_Config.TextSize; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0.2; box.DistLabel = distTxt
         
-        if Drawing then
-            box.TracerLine = Drawing.new("Line"); box.TracerLine.Thickness = 1.5; box.TracerLine.Transparency = 0.8; box.TracerLine.Color = ESP_Config.Color
+        if Drawing and type(Drawing) == "table" and Drawing.new then
+            pcall(function()
+                box.TracerLine = Drawing.new("Line"); box.TracerLine.Thickness = 1.5; box.TracerLine.Transparency = 0.8; box.TracerLine.Color = ESP_Config.Color
+            end)
         end
     end
     if isPlayer then if entity.Character then ApplyVisuals(entity.Character) end; box.Connection = entity.CharacterAdded:Connect(ApplyVisuals) else ApplyVisuals(entity) end

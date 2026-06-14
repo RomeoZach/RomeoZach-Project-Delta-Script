@@ -302,27 +302,46 @@ local function checkTargetVisibility(targetPart)
     end
 
     local origin = Camera.CFrame.Position
-    local direction = targetPart.Position - origin
-    visCheckParams.FilterDescendantsInstances = {lpChar, Camera}
-    local raycastResult = workspace:Raycast(origin, direction, visCheckParams)
+    local targetPos = targetPart.Position
+    local ignoreList = {lpChar, Camera}
+    visCheckParams.FilterDescendantsInstances = ignoreList
 
-    -- JIKA TIDAK ADA HALANGAN = TERBUKA (Putih Cerah)
-    if not raycastResult then
-        return "Visible", Color3.fromRGB(255, 255, 255)
+    local isWallbang = false
+    local safetyLimit = 50
+    local loopCount = 0
+
+    while true do
+        loopCount = loopCount + 1
+        if loopCount > safetyLimit then break end -- Failsafe anti-crash
+
+        local direction = targetPos - origin
+        local raycastResult = workspace:Raycast(origin, direction, visCheckParams)
+
+        -- JIKA TIDAK ADA HALANGAN = MENCAPAI TARGET
+        if not raycastResult then
+            return (isWallbang and "Wallbang" or "Visible"), Color3.fromRGB(255, 255, 255)
+        end
+
+        local hitInstance = raycastResult.Instance
+
+        -- JIKA LASER MENABRAK BAGIAN TUBUH TARGETNYA SENDIRI
+        if hitInstance:IsDescendantOf(targetPart.Parent) then
+            return (isWallbang and "Wallbang" or "Visible"), Color3.fromRGB(255, 255, 255)
+        end
+
+        -- PENGECEKAN MATERIAL PENANGGULANGAN TEMBOK LUNAK BERLAPIS
+        if WallbangableMaterials[raycastResult.Material] or hitInstance.Transparency > 0.5 or not hitInstance.CanCollide then
+            isWallbang = true
+            table.insert(ignoreList, hitInstance)
+            visCheckParams.FilterDescendantsInstances = ignoreList
+            origin = raycastResult.Position -- Tarik raycast baru dari titik tabrakan
+        else
+            -- MENABRAK MATERIAL SOLID/KERAS = BLOCKED
+            return "Blocked", Color3.fromRGB(80, 80, 80)
+        end
     end
 
-    -- JIKA LASER MENABRAK BAGIAN TUBUH TARGETNYA SENDIRI (Putih Cerah)
-    local hitInstance = raycastResult.Instance
-    if hitInstance:IsDescendantOf(targetPart.Parent) then
-        return "Visible", Color3.fromRGB(255, 255, 255)
-    end
-
-    -- PENGECEKAN MATERIAL PENANGGULANGAN TEMBOK LUNAK (WALLBANG INDEX)
-    if WallbangableMaterials[raycastResult.Material] or hitInstance.Transparency > 0.5 or not hitInstance.CanCollide then
-        return "Wallbang", Color3.fromRGB(255, 255, 255) -- Terpadu menjadi Putih Cerah sesuai maunya lu
-    else
-        return "Blocked", Color3.fromRGB(80, 80, 80)    -- Tembok Solid = Abu-abu Gelap (Mata ga silau)
-    end
+    return "Blocked", Color3.fromRGB(80, 80, 80)
 end
 
 -- // UTAS 3 V7: Seleksi Target Prioritas Kursor Layar 2D (Bypass Jarak Studs)

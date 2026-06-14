@@ -1,5 +1,5 @@
 -- [[ ROMEOZACH SC - Project Delta v7 (Kinematics & Dual-Scan Optimization) ]]
--- Author: RomeoZach (Fixed Syntax & Integrated Ballistic UI)
+-- Author: RomeoZach (Fixed Compile Syntax & Multi-Line Structure)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,7 +11,7 @@ local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Configuration State (Ditambahkan key "VisCheck" bawaan V7)
+-- // Configuration State
 local ESP_Config = {
     Enabled = true,
     VisCheck = true,
@@ -43,14 +43,11 @@ local LightingBackups = {
     EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale
 }
 
--- // Environmental Analytics Setup (Daftar Material Lunak)
+-- // Environmental Analytics Setup
 local WallbangableMaterials = {
-    [Enum.Material.Wood] = true, 
-    [Enum.Material.WoodPlanks] = true,
-    [Enum.Material.Fabric] = true, 
-    [Enum.Material.Plastic] = true,
-    [Enum.Material.Glass] = true, 
-    [Enum.Material.Cardboard] = true,
+    [Enum.Material.Wood] = true, [Enum.Material.WoodPlanks] = true,
+    [Enum.Material.Fabric] = true, [Enum.Material.Plastic] = true,
+    [Enum.Material.Glass] = true, [Enum.Material.Cardboard] = true,
     [Enum.Material.Sand] = true
 }
 
@@ -58,15 +55,31 @@ local visCheckParams = RaycastParams.new()
 visCheckParams.FilterType = Enum.RaycastFilterType.Exclude
 visCheckParams.IgnoreWater = true
 
--- // UI Creation Initialization
+-- // FIX ERROR LINE 1: Proteksi Keamanan Pemuatan Interface CoreGui
 if CoreGui:FindFirstChild("RomeoZach_Ui") then 
-    CoreGui.RomeoZach_Ui:Destroy() 
+    pcall(function() CoreGui.RomeoZach_Ui:Destroy() end)
 end
 
-local RomeoZachUI = Instance.new("ScreenGui", CoreGui)
+local RomeoZachUI = Instance.new("ScreenGui")
 RomeoZachUI.Name = "RomeoZach_Ui"
 RomeoZachUI.ResetOnSpawn = false
-if syn and syn.protect_gui then syn.protect_gui(RomeoZachUI) end
+
+-- Mengamankan fungsi protect_gui milik Synapse/Exploit agar tidak memicu nil value crash
+pcall(function()
+    if syn and syn.protect_gui then 
+        syn.protect_gui(RomeoZachUI) 
+    end
+end)
+
+-- Fallback aman: Jika CoreGui diproteksi ketat oleh Roblox, pindahkan parent ke PlayerGui bawaan lu
+local targetGuiParent = CoreGui
+pcall(function()
+    RomeoZachUI.Parent = targetGuiParent
+end)
+if not RomeoZachUI.Parent and LocalPlayer:FindFirstChild("PlayerGui") then
+    targetGuiParent = LocalPlayer.PlayerGui
+    RomeoZachUI.Parent = targetGuiParent
+end
 local MainFrame = Instance.new("Frame", RomeoZachUI)
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 320, 0, 610) -- Tinggi diubah ke 610 agar muat tombol analitik baru
@@ -86,7 +99,7 @@ MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 local Header = Instance.new("TextLabel", MainFrame)
 Header.Size = UDim2.new(1, 0, 0, 35)
 Header.BackgroundTransparency = 1
-Header.Text = "  RomeoZach SC v7"
+Header.Text = "  RomeoZach SC"
 Header.TextColor3 = Color3.fromRGB(240, 240, 245)
 Header.TextSize = 14
 Header.Font = Enum.Font.GothamBold
@@ -145,6 +158,7 @@ local BulletTracersBtn = CreateToggle("Yellow Bullet Tracers", "BulletTracers")
 local CrosshairBtn = CreateToggle("Tiny Center Crosshair", "Crosshair")
 local VisCheckBtn = CreateToggle("Wallbang Target Analytics", "VisCheck") -- Tombol Baru V7
 local PerformanceBtn = CreateToggle("Performance Mode", "PerformanceMode")
+
 PerformanceBtn.MouseButton1Click:Connect(function()
     if ESP_Config.PerformanceMode then
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -341,31 +355,28 @@ local function GetBestTargetInFOV()
     end
     return bestChar
 end
+
 local function ApplyWeaponCham(part)
     if part:IsA("BasePart") and not part:FindFirstChild("Cham_Adornment") then
         local adorn = Instance.new("BoxHandleAdornment", part)
         adorn.Name = "Cham_Adornment"; adorn.Size = part.Size + Vector3.new(0.02, 0.02, 0.02); adorn.Color3 = ESP_Config.WeaponColor
         adorn.AlwaysOnTop = true; adorn.ZIndex = 5; adorn.Transparency = 0.4; adorn.Adornee = part
-        table.insert(WeaponConnections, {Adornment = adorn, Part = part, OrigMat = part.Material}); part.Material = Enum.Material.Neon
+        table.insert(WeaponConnections, {Adornment = adorn, Part = part, OrigMat = part.Material})
+        part.Material = Enum.Material.Neon
     end
 end
 
--- PROTEKSI EKSEKUTOR: Mencegah crash "attempt to call a nil value" jika Drawing lib tidak ada
 local function CreateCrosshair()
-    if not Drawing or type(Drawing) ~= "table" or not Drawing.new then return end
-    pcall(function()
-        CrosshairLines = {Horizontal = Drawing.new("Line"), Vertical = Drawing.new("Line")}
-        for _, line in pairs(CrosshairLines) do line.Thickness = 1.5; line.Color = Color3.fromRGB(255, 255, 255); line.Transparency = 1; line.Visible = false end
-    end)
+    if not Drawing then return end
+    CrosshairLines = {Horizontal = Drawing.new("Line"), Vertical = Drawing.new("Line")}
+    for _, line in pairs(CrosshairLines) do line.Thickness = 1.5; line.Color = Color3.fromRGB(255, 255, 255); line.Transparency = 1; line.Visible = false end
 end
 
 local function CreateBulletTracer(startPos, endPos)
-    if not Drawing or type(Drawing) ~= "table" or not Drawing.new or not ESP_Config.Enabled or not ESP_Config.BulletTracers then return end
-    pcall(function()
-        local tracer = Drawing.new("Line")
-        tracer.Thickness = 2; tracer.Color = ESP_Config.BulletColor; tracer.Transparency = 1; tracer.Visible = false
-        table.insert(ActiveBulletTracers, {Tracer = tracer, StartPos = startPos, EndPos = endPos, LifeTime = 0.4, SpawnTime = tick()})
-    end)
+    if not Drawing or not ESP_Config.Enabled or not ESP_Config.BulletTracers then return end
+    local tracer = Drawing.new("Line")
+    tracer.Thickness = 2; tracer.Color = ESP_Config.BulletColor; tracer.Transparency = 1; tracer.Visible = false
+    table.insert(ActiveBulletTracers, {Tracer = tracer, StartPos = startPos, EndPos = endPos, LifeTime = 0.4, SpawnTime = tick()})
 end
 
 local function ChamWeapon(tool)
@@ -378,7 +389,7 @@ local function ChamWeapon(tool)
             local mousePos = UserInputService:GetMouseLocation()
             local unitRay = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
             local rp = RaycastParams.new()
-            rp.FilterPlayers = {LocalPlayer}; rp.FilterType = Enum.RaycastFilterType.Exclude
+            rp.FilterDescendantsInstances = {LocalPlayer.Character}; rp.FilterType = Enum.RaycastFilterType.Exclude
             local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, rp)
             CreateBulletTracer(origin, result and result.Position or (unitRay.Origin + unitRay.Direction * 1000))
         end
@@ -402,50 +413,50 @@ local function MonitorCharacter(char)
 end
 
 if LocalPlayer.Character then MonitorCharacter(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(MonitorCharacter); CreateCrosshair()
-
-local function RemoveESP(entity)
-    if ESP_Objects[entity] then
-        local box = ESP_Objects[entity]
-        if box.Highlight then box.Highlight:Destroy() end
-        if box.Billboard then box.Billboard:Destroy() end
-        if box.TracerLine then pcall(function() box.TracerLine:Remove() end) end
-        if box.Connection then box.Connection:Disconnect() end
-        ESP_Objects[entity] = nil
-    end
-end
+LocalPlayer.CharacterAdded:Connect(MonitorCharacter)
+CreateCrosshair()
 
 local function CreateESP(entity, isPlayer)
     if isPlayer and entity == LocalPlayer then return end
     if ESP_Objects[entity] then return end
     local box = {Highlight = nil, Billboard = nil, NameLabel = nil, DistLabel = nil, TracerLine = nil, Connection = nil}
-    
     local function ApplyVisuals(char)
         if not char then return end
         local hl = char:FindFirstChildOfClass("Highlight") or Instance.new("Highlight", char)
-        hl.FillColor = ESP_Config.Color; hl.FillTransparency = 0.6; hl.OutlineColor = ESP_Config.Color; hl.OutlineTransparency = 0; hl.Adornee = char; box.Highlight = hl
-        
+        hl.FillColor = ESP_Config.Color; hl.FillTransparency = 0.6; hl.OutlineColor = ESP_Config.Color; hl.OutlineTransparency = 0; hl.Adornee = char
+        box.Highlight = hl
         local bb = Instance.new("BillboardGui", char)
-        bb.Name = "RomeoZach_Billboard"; bb.Size = UDim2.new(0, 200, 0, 50); bb.AlwaysOnTop = true; bb.Adornee = char:WaitForChild("Head", 5) or char:FindFirstChildOfClass("Part"); box.Billboard = bb
-        
+        bb.Name = "RomeoZach_Billboard"; bb.Size = UDim2.new(0, 200, 0, 50); bb.AlwaysOnTop = true; bb.Adornee = char:WaitForChild("Head", 5) or char:FindFirstChildOfClass("Part")
+        box.Billboard = bb
         local nameTxt = Instance.new("TextLabel", bb)
         nameTxt.Size = UDim2.new(1, 0, 0, 20); nameTxt.Position = UDim2.new(0, 0, 0, -25); nameTxt.BackgroundTransparency = 1
         nameTxt.Text = isPlayer and (entity.DisplayName or entity.Name) or entity.Name
-        nameTxt.TextColor3 = ESP_Config.Color; nameTxt.TextSize = ESP_Config.TextSize; nameTxt.Font = ESP_Config.Font; nameTxt.TextStrokeTransparency = 0.2; box.NameLabel = nameTxt
-        
+        nameTxt.TextColor3 = ESP_Config.Color; nameTxt.TextSize = ESP_Config.TextSize; nameTxt.Font = ESP_Config.Font; nameTxt.TextStrokeTransparency = 0.2
+        box.NameLabel = nameTxt
         local distTxt = Instance.new("TextLabel", bb)
         distTxt.Size = UDim2.new(1, 0, 0, 20); distTxt.Position = UDim2.new(0, 0, 0, 35); distTxt.BackgroundTransparency = 1
-        distTxt.Text = "0 studs"; distTxt.TextColor3 = ESP_Config.Color; distTxt.TextSize = ESP_Config.TextSize; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0.2; box.DistLabel = distTxt
-        
-        if Drawing and type(Drawing) == "table" and Drawing.new then
-            pcall(function()
-                box.TracerLine = Drawing.new("Line"); box.TracerLine.Thickness = 1.5; box.TracerLine.Transparency = 0.8; box.TracerLine.Color = ESP_Config.Color
-            end)
+        distTxt.Text = "0 studs"; distTxt.TextColor3 = ESP_Config.Color; distTxt.TextSize = ESP_Config.TextSize; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0.2
+        box.DistLabel = distTxt
+        if Drawing then
+            box.TracerLine = Drawing.new("Line")
+            box.TracerLine.Thickness = 1.5; box.TracerLine.Transparency = 0.8; box.TracerLine.Color = ESP_Config.Color
         end
     end
     if isPlayer then if entity.Character then ApplyVisuals(entity.Character) end; box.Connection = entity.CharacterAdded:Connect(ApplyVisuals) else ApplyVisuals(entity) end
     ESP_Objects[entity] = box
 end
+
+local function RemoveESP(entity)
+    local box = ESP_Objects[entity]
+    if box then
+        if box.Connection then box.Connection:Disconnect() end
+        if box.Highlight then box.Highlight:Destroy() end
+        if box.Billboard then box.Billboard:Destroy() end
+        if box.TracerLine then box.TracerLine:Remove() end
+        ESP_Objects[entity] = nil
+    end
+end
+
 -- // GABUNGAN SCANNER GANDA: Player dan Bot Aktif Berdampingan (RESTORED V5)
 task.spawn(function()
     while task.wait(2) do
@@ -464,18 +475,92 @@ task.spawn(function()
             if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("Head") then
                 if not Players:GetPlayerFromCharacter(obj) and obj ~= lpChar then
                     local dist = lpHead and (lpHead.Position - obj.Head.Position).Magnitude or math.huge
-                    if (obj.Humanoid.Health > 0 and dist  0 then ClearWeaponChams()
+                    local health = obj.Humanoid.Health
+                    
+                    -- Bot/Musuh hidup (<= 500) ATAU Mayat (<= 250)
+                    if (health > 0 and dist <= 500) or (health <= 0 and dist <= 250) then
+                        if not ESP_Objects[obj] then CreateESP(obj, false) end
+                    else
+                        if ESP_Objects[obj] then RemoveESP(obj) end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- // Live Frame Render Loop
+RunService.RenderStepped:Connect(function()
+    fpsCount = fpsCount + 1
+    PingLabel.Text = string.format("Ping: %d ms", math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()))
+    TimeLabel.Text = string.format("Time: %s", os.date("%X"))
+
+    for entity, box in pairs(ESP_Objects) do
+        local char = typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character or entity
+        
+        if ESP_Config.Enabled and char and char:FindFirstChild("Head") and char:FindFirstChildOfClass("Humanoid") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
+            local isDead = char.Humanoid.Health <= 0
+            local myPos = LocalPlayer.Character.Head.Position
+            local targetPos = char.Head.Position
+            local dist = (myPos - targetPos).Magnitude
+            
+            local visStatus, visColor = checkTargetVisibility(char.Head)
+            local finalColor = (ESP_Config.VisCheck and visColor) or ESP_Config.Color
+            
+            if not isDead or (isDead and dist <= 250) then
+                if box.Highlight then 
+                    box.Highlight.Enabled = true 
+                    box.Highlight.FillColor = isDead and Color3.fromRGB(150, 150, 150) or finalColor
+                    box.Highlight.OutlineColor = isDead and Color3.fromRGB(150, 150, 150) or finalColor
+                end
+                if box.Billboard then box.Billboard.Enabled = true end
+                if box.DistLabel then box.DistLabel.Text = string.format("[%d studs]", math.floor(dist)) end
+                
+                if box.NameLabel then
+                    local nameStr = typeof(entity) == "Instance" and entity:IsA("Player") and (entity.DisplayName or entity.Name) or entity.Name
+                    box.NameLabel.Text = isDead and "[MAYAT] " .. nameStr or nameStr
+                    box.NameLabel.TextColor3 = isDead and Color3.fromRGB(150, 150, 150) or finalColor
+                    box.DistLabel.TextColor3 = isDead and Color3.fromRGB(150, 150, 150) or finalColor
+                end
+
+                if ESP_Config.Tracers and box.TracerLine and not isDead then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(targetPos)
+                    if onScreen then
+                        box.TracerLine.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        box.TracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+                        box.TracerLine.Color = finalColor
+                        box.TracerLine.Visible = true
+                    else box.TracerLine.Visible = false end
+                elseif box.TracerLine then box.TracerLine.Visible = false end
+            else
+                if box.Highlight then box.Highlight.Enabled = false end
+                if box.Billboard then box.Billboard.Enabled = false end
+                if box.TracerLine then box.TracerLine.Visible = false end
+            end
+        else
+            if box.Highlight then box.Highlight.Enabled = false end
+            if box.Billboard then box.Billboard.Enabled = false end
+            if box.TracerLine then box.TracerLine.Visible = false end
+        end
+    end
+
+    if not ESP_Config.WeaponChams and #WeaponConnections > 0 then ClearWeaponChams()
     elseif (ESP_Config.WeaponChams or ESP_Config.BulletTracers) and #WeaponConnections == 0 and LocalPlayer.Character then
         local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
         if currentTool then ChamWeapon(currentTool) end
     end
 
     for i = #ActiveBulletTracers, 1, -1 do
-        local trace = ActiveBulletTracers[i]; local age = tick() - trace.SpawnTime
-        if age >= trace.LifeTime or not ESP_Config.Enabled or not ESP_Config.BulletTracers then trace.Tracer:Remove(); table.remove(ActiveBulletTracers, i)
+        local trace = ActiveBulletTracers[i]
+        local age = tick() - trace.SpawnTime
+        if age >= trace.LifeTime or not ESP_Config.Enabled or not ESP_Config.BulletTracers then
+            trace.Tracer:Remove(); table.remove(ActiveBulletTracers, i)
         else
-            local sScreen, sVis = Camera:WorldToViewportPoint(trace.StartPos); local eScreen, eVis = Camera:WorldToViewportPoint(trace.EndPos)
-            if sVis and eV then trace.Tracer.From = Vector2.new(sScreen.X, sScreen.Y); trace.Tracer.To = Vector2.new(eScreen.X, eScreen.Y); trace.Tracer.Transparency = 1 - (age / trace.LifeTime); trace.Tracer.Visible = true
+            local sScreen, sVis = Camera:WorldToViewportPoint(trace.StartPos)
+            local eScreen, eVis = Camera:WorldToViewportPoint(trace.EndPos)
+            if sVis and eVis then
+                trace.Tracer.From = Vector2.new(sScreen.X, sScreen.Y); trace.Tracer.To = Vector2.new(eScreen.X, eScreen.Y)
+                trace.Tracer.Transparency = 1 - (age / trace.LifeTime); trace.Tracer.Visible = true
             else trace.Tracer.Visible = false end
         end
     end
@@ -488,7 +573,18 @@ task.spawn(function()
             CrosshairLines.Horizontal.Visible = true; CrosshairLines.Vertical.Visible = true
         else CrosshairLines.Horizontal.Visible = false; CrosshairLines.Vertical.Visible = false end
     end
+
+    if ESP_Config.AimLock and IsAiming then
+        if not CurrentTargetChar or not CurrentTargetChar:FindFirstChild("Head") or not CurrentTargetChar:FindFirstChildOfClass("Humanoid") or CurrentTargetChar.Humanoid.Health <= 0 then
+            CurrentTargetChar = GetBestTargetInFOV()
+        end
+        if CurrentTargetChar and CurrentTargetChar:FindFirstChild("Head") then
+            local targetRecoilPos = CurrentTargetChar.Head.Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetRecoilPos)
+        end
+    end
 end)
 
 for _, p in ipairs(Players:GetPlayers()) do CreateESP(p, true) end
-Players.PlayerAdded:Connect(function(p) CreateESP(p, true) end); Players.PlayerRemoving:Connect(function(p) RemoveESP(p) end)
+Players.PlayerAdded:Connect(function(p) CreateESP(p, true) end)
+Players.PlayerRemoving:Connect(function(p) RemoveESP(p) end)

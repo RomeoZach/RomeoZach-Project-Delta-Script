@@ -1095,10 +1095,10 @@ local success, errorMessage = pcall(function()
                                 box.DistLabel.Text = string.format("[%d m]", distMeter)
                                 box.DistLabel.TextColor3 = finalColor
                                 box.DistLabel.TextSize = dynamicTextSize
-                                pcall(function()
-                                    if box.DistBillboard and box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end
-                                    if box.DistBillboard then box.DistBillboard.Enabled = true end
-                                end)
+                                if box.DistBillboard then
+                                    pcall(function() if box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end end)
+                                    box.DistBillboard.Enabled = true
+                                end
                             end
                         end
                     else

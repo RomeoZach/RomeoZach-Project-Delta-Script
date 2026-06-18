@@ -1211,7 +1211,6 @@ Players.PlayerRemoving:Connect(RemoveESP)
 
 -- [[ SYSTEM RECONGITION & MEMORY PURGE EXTENSION ]]
 -- Memastikan skrip melakukan pembersihan total saat Anda extract / kembali ke lobby
-
 local function PurgeAllGarbageMemory()
     -- Mematikan semua visual yang masih menempel di layar sebelum dibersihkan
     for entity, box in pairs(ESP_Objects) do

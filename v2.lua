@@ -1240,26 +1240,16 @@ local function PurgeAllGarbageMemory()
     collectgarbage("collect")
 end
 
--- Deteksi otomatis saat keluar dari server medan tempur menuju lobby utama
+-- Deteksi otomatis saat Anda keluar dari server medan tempur/extract menuju lobby utama
 Players.PlayerRemoving:Connect(function(player)
     if player == LocalPlayer then
-        task.spawn(PurgeAllGarbageMemory)
+        PurgeAllGarbageMemory()
         pcall(function() RunService:UnbindFromRenderStep("RomeoZach_Render") end)
-    else
-        if ESP_Objects[player] then
-            pcall(function()
-                local box = ESP_Objects[player]
-                if box.Highlight then box.Highlight:Destroy() end
-                if box.Billboard then box.Billboard:Destroy() end
-                if box.Connection then box.Connection:Disconnect() end
-            end)
-            ESP_Objects[player] = nil
-        end
     end
 end)
 
--- Pesan konfirmasi di output F9 Roblox Studio bahwa skrip telah menyatu sempurna
-print("[ROMEOZACH SC]: Skrip berhasil dikompilasi utuh. Sistem proteksi anti-lag 1000% aktif!")
+print("[ROMEOZACH SC]: Skrip berhasil dikompilasi utuh 100%. Menu Visual Clean UI Aktif!")
+
 
 end)
 if not success then

@@ -1097,8 +1097,8 @@ local success, errorMessage = pcall(function()
                                 box.DistLabel.TextSize = dynamicTextSize
                                 pcall(function()
                                     if box.DistBillboard and box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end
+                                    if box.DistBillboard then box.DistBillboard.Enabled = true end
                                 end)
-                                box.DistBillboard.Enabled = true
                             end
                         end
                     else

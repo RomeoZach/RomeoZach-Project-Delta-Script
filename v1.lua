@@ -1,8 +1,8 @@
 --[[
     ================================================================================
     --|                                                                            |--
-    --|                    PROJECT DELTA V1 - REBUILT & MODULARIZED                |--
-    --|                              Author : RomeoZach                            |--
+    --|           PROJECT DELTA V8 ULTIMATE - REBUILT & MODULARIZED                |--
+    --|                             Author  : RomeoZach                            |--
     --|                                                                            |--
     ================================================================================
 ]]
@@ -42,7 +42,7 @@ pcall(function()
         ESP_Containers = false,
         BulletTracers = false,
         Crosshair = false,
-        VisCheck = false,
+        VisCheck = true,
         GunMods = false, -- No Recoil & No Spread
         FindWeapons = false, -- Item Finder for Guns
         FindValuables = false, -- Item Finder for Valuables
@@ -99,7 +99,7 @@ pcall(function()
     local ignoreList = {}
 
     -- // UI Framework (Rebuilt - 2 Column Layout)
-    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 20)
     if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
         pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
     end
@@ -111,7 +111,7 @@ pcall(function()
     RomeoZachGui.IgnoreGuiInset = true
     RomeoZachGui.Parent = PlayerGui
 
-    -- // Crosshair Framework (Tetap sama)
+    -- // Crosshair Framework
     local chX = Instance.new("Frame", RomeoZachGui)
     chX.Size = UDim2.new(0, 14, 0, 2)
     chX.Position = UDim2.new(0.5, -7, 0.5, -1)
@@ -130,13 +130,13 @@ pcall(function()
     Instance.new("UIStroke", chY).Thickness = 1
     table.insert(CrosshairLines, chY)
 
-    -- // Main UI Frame (Diubah menjadi lanskap)
+    -- // Main UI Frame
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 480, 0, 260) -- Dibuat lebih lebar dan pendek, tinggi disesuaikan
-    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -130)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
-    MainFrame.BackgroundTransparency = 0.15
+    MainFrame.Size = UDim2.new(0, 500, 0, 310) 
+    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -155)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(18, 19, 21)
+    MainFrame.BackgroundTransparency = 0.1
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
     MainFrame.Draggable = true
@@ -144,59 +144,79 @@ pcall(function()
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1
-    MainStroke.Color = Color3.fromRGB(45, 48, 53)
+    MainStroke.Color = Color3.fromRGB(50, 53, 58)
     MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    -- // Header (Teks dipindah ke tengah)
+    -- // Header 
     local Header = Instance.new("TextLabel", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 35)
+    Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
     Header.Text = "Project Delta SC - Rebuilt"
-    Header.TextColor3 = Color3.fromRGB(240, 240, 245)
+    Header.TextColor3 = Color3.fromRGB(255, 255, 255)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
-    Header.TextXAlignment = Enum.TextXAlignment.Center -- Digeser ke tengah
+    Header.TextXAlignment = Enum.TextXAlignment.Center
 
+    -- // Garis Pemisah (Divider)
+    local Divider = Instance.new("Frame", MainFrame)
+    Divider.Size = UDim2.new(1, -30, 0, 1)
+    Divider.Position = UDim2.new(0, 15, 0, 38)
+    Divider.BackgroundColor3 = Color3.fromRGB(50, 53, 58)
+    Divider.BorderSizePixel = 0
+
+    -- // Container & Padding
     local Container = Instance.new("Frame", MainFrame)
-    Container.Size = UDim2.new(1, -20, 1, -45)
-    Container.Position = UDim2.new(0, 10, 0, 35)
+    Container.Size = UDim2.new(1, 0, 1, -40)
+    Container.Position = UDim2.new(0, 0, 0, 40)
     Container.BackgroundTransparency = 1
 
-    -- // Menggunakan UIGridLayout untuk membuat 2 kolom
+    local ContainerPadding = Instance.new("UIPadding", Container)
+    ContainerPadding.PaddingTop = UDim.new(0, 12)
+    ContainerPadding.PaddingBottom = UDim.new(0, 12)
+    ContainerPadding.PaddingLeft = UDim.new(0, 15)
+    ContainerPadding.PaddingRight = UDim.new(0, 15)
+
+    -- // UIGridLayout
     local UIGridLayout = Instance.new("UIGridLayout", Container)
     UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10) -- Jarak antar kotak
-    UIGridLayout.CellSize = UDim2.new(0.5, -5, 0, 40) -- Lebar kotak 50% dari container (2 kolom)
+    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 8)
+    UIGridLayout.CellSize = UDim2.new(0.5, -5, 0, 42)
 
     local function CreateToggle(labelText, configKey)
         local Frame = Instance.new("Frame", Container)
-        Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27)
+        Frame.BackgroundColor3 = Color3.fromRGB(26, 28, 33)
         Frame.BorderSizePixel = 0
         Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
 
         local Label = Instance.new("TextLabel", Frame)
         Label.Size = UDim2.new(0.65, 0, 1, 0)
-        Label.Position = UDim2.new(0, 10, 0, 0)
+        Label.Position = UDim2.new(0, 15, 0, 0)
         Label.BackgroundTransparency = 1
         Label.Text = labelText
-        Label.TextColor3 = Color3.fromRGB(200, 200, 205)
-        Label.TextSize = 12 -- Diperkecil sedikit agar pas di dalam kolom
-        Label.Font = Enum.Font.Gotham
+        Label.TextColor3 = Color3.fromRGB(210, 210, 215)
+        Label.TextSize = 12
+        Label.Font = Enum.Font.GothamMedium
         Label.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- Latar Belakang Toggle (Bentuk Kapsul)
+        -- Latar Belakang Toggle (Track)
         local Track = Instance.new("Frame", Frame)
-        Track.Size = UDim2.new(0, 40, 0, 20)
-        Track.Position = UDim2.new(1, -50, 0.5, -10)
-        Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
+        Track.Size = UDim2.new(0, 42, 0, 22)
+        Track.Position = UDim2.new(1, -55, 0.5, -11)
+        Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(45, 48, 54)
         Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0)
 
         -- Lingkaran Indikator (Knob)
         local Knob = Instance.new("Frame", Track)
-        Knob.Size = UDim2.new(0, 16, 0, 16)
-        Knob.Position = ESP_Config[configKey] and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+        Knob.Size = UDim2.new(0, 18, 0, 18)
+        Knob.Position = ESP_Config[configKey] and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
         Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+        
+        -- Bayangan Tipis pada Knob
+        local KnobShadow = Instance.new("UIStroke", Knob)
+        KnobShadow.Thickness = 1
+        KnobShadow.Color = Color3.fromRGB(0, 0, 0)
+        KnobShadow.Transparency = 0.8
 
         -- Tombol Transparan untuk Klik
         local Btn = Instance.new("TextButton", Track)
@@ -208,13 +228,12 @@ pcall(function()
             ESP_Config[configKey] = not ESP_Config[configKey]
             local isActive = ESP_Config[configKey]
             
-            -- Animasi Transisi Warna Latar & Posisi Lingkaran
-            TweenService:Create(Track, TweenInfo.new(0.2), {
-                BackgroundColor3 = isActive and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
+            TweenService:Create(Track, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundColor3 = isActive and ESP_Config.Color or Color3.fromRGB(45, 48, 54)
             }):Play()
             
-            TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Position = isActive and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Position = isActive and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
             }):Play()
 
             if configKey == "AimLock" and not ESP_Config.AimLock then CurrentTargetChar = nil end
@@ -239,6 +258,7 @@ pcall(function()
     local CrosshairBtn = CreateToggle("Tiny Center Crosshair", "Crosshair")
     local GunModsBtn = CreateToggle("No Recoil & No Spread", "GunMods")
     local PerformanceBtn = CreateToggle("Performance Mode", "PerformanceMode")
+local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
@@ -367,8 +387,8 @@ pcall(function()
 
     local function GetBestTargetInFOV()
         local bestEntity, bestChar = nil, nil
-        -- [MAKSIMALKAN AIMLOCK] Radius FOV diperkecil menjadi 120 piksel agar tidak nge-flip.
-        local shortestPixelDist = 120
+        -- [FIX AIMLOCK] Radius FOV diperbesar menjadi 300 piksel agar lebih mudah mengunci target.
+        local shortestPixelDist = 300
         local centerPos = Camera.ViewportSize / 2
         local origin = Camera.CFrame.Position
         
@@ -1061,146 +1081,93 @@ pcall(function()
             -- [OPTIMISASI] Cek toggle spesifik sebelum merender.
             local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses)
 
-            if shouldProcess and char and char ~= lpChar then
-                local rootPart = nil
-                if char:IsA("BasePart") then
-                    rootPart = char
+            if not shouldProcess then
+                box.CanBeAimlocked = false
+                if box.Highlight then box.Highlight.Enabled = false end
+                if box.DistBillboard then box.DistBillboard.Enabled = false end
+                continue
+            end
+    
+            if not isItem and char and char ~= lpChar then
+                local rootPart = char:IsA("BasePart") and char or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+                if isDead and not rootPart and char then rootPart = char:FindFirstChildWhichIsA("BasePart", true) or char end
+    
+                if not rootPart then
+                    box.CanBeAimlocked = false
+                    if box.Highlight then box.Highlight.Enabled = false end
+                    if box.DistBillboard then box.DistBillboard.Enabled = false end
+                    continue
+                end
+    
+                local rootPos = rootPart:IsA("BasePart") and rootPart.Position or rootPart:GetPivot().Position
+                local studsDist = (cameraPos - rootPos).Magnitude
+                
+                local shouldRender = false
+                if isDead then
+                    shouldRender = (studsDist <= 350)
                 else
-                    rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") or char:FindFirstChildWhichIsA("BasePart", true)
+                    local isPlayerChar = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
+                    shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
                 end
                 
-                -- PERBAIKAN MUTLAK MAYAT: Jika objek mati (isDead) tetapi bagian utama hancur, cari sisa anatomi
-                if isDead and not rootPart and char then
-                    rootPart = char:FindFirstChildWhichIsA("BasePart", true) or char
-                end
-                
-                if rootPart then
-                    local rootPos = rootPart:IsA("BasePart") and rootPart.Position or rootPart:GetPivot().Position
-                    local studsDist = (cameraPos - rootPos).Magnitude
-                    local distMeter = math.floor(studsDist / 3.571428)
-                    
-                    local shouldRender = false
+                if shouldRender then
+                    local finalColor
                     if isDead then
-                        -- [FIX] Jarak Culling Mayat/Corpse dikurangi menjadi 100 Meter (350 Studs)
-                        shouldRender = (studsDist <= 350)
+                        finalColor = COLOR_DEAD
+                        box.CanBeAimlocked = false
                     else
-                        local isPlayerChar = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
-                        if isPlayerChar then
-                            -- Jarak Culling Player Asli: 900 Meter (3150 Studs)
-                            shouldRender = (studsDist <= 3150)
-                        else
-                            -- Jarak Culling NPC / Bot AI: 450 Meter (1575 Studs)
-                            shouldRender = (studsDist <= 1575)
-                        end
+                        local visStatus, visColor = checkTargetVisibility(rootPart, char)
+                        finalColor = visColor
+                        box.CanBeAimlocked = (visStatus == "Visible")
                     end
-                    
-                    -- [FIX] Skala Teks Dinamis Clamped ke 8-10px untuk konsistensi UI
-                    local dynamicTextSize = math.clamp(10 - math.floor(studsDist / 200), 8, 10)
-                    
-                    if shouldRender then
-                        local finalColor
-                        if isDead then
-                            finalColor = COLOR_DEAD
-                            box.CanBeAimlocked = false
-                            if box.DistBillboard then box.DistBillboard.Enabled = false end
-                            if box.DistLabel then box.DistLabel.Text = "" end
-                            if box.Billboard then box.Billboard.Enabled = false end
+    
+                    if box.Highlight then
+                        box.Highlight.Enabled = true
+                        box.Highlight.FillColor = finalColor
+                        box.Highlight.OutlineColor = finalColor
+                        if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
+                    end
+    
+                    if box.DistBillboard then
+                        if isDead or box.IsHelicopter then
+                            box.DistBillboard.Enabled = false
                         else
-                            local visStatus, visColor = checkTargetVisibility(rootPart, char)
-                            finalColor = visColor
-                            
-                            if visStatus == "Visible" then
-                                box.CanBeAimlocked = true
-                            else
-                                box.CanBeAimlocked = false
-                            end
-                        end
-                        
-                        if box.Highlight then box.Highlight.FillColor = finalColor; box.Highlight.OutlineColor = finalColor end
-                        
-                        if box.IsHelicopter then
-                            if box.DistBillboard then box.DistBillboard.Enabled = false end
-                            if box.DistLabel then box.DistLabel.Text = "" end
-                            if box.Billboard then box.Billboard.Enabled = false end
-                        elseif not isDead then
-                            if box.DistLabel and not isDead then 
+                            box.DistBillboard.Enabled = true
+                            if box.DistLabel then
+                                local distMeter = math.floor(studsDist / 3.571428)
+                                local dynamicTextSize = math.clamp(10 - math.floor(studsDist / 200), 8, 10)
                                 box.DistLabel.Text = string.format("[%d m]", distMeter)
                                 box.DistLabel.TextColor3 = finalColor
                                 box.DistLabel.TextSize = dynamicTextSize
-                                if box.DistBillboard and box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end 
                             end
+                            if box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end
                         end
-                    else
-                        box.CanBeAimlocked = false
                     end
-                    
-                    if shouldRender then
-                        if box.Highlight then 
-                            box.Highlight.Enabled = true 
-                            if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
-                        end
-                        
-                        if box.DistBillboard then
-                            box.DistBillboard.Enabled = (not box.IsHelicopter and not isDead)
-                        end
-                    else
-                        if box.Highlight then 
-                            box.Highlight.Enabled = false 
-                        end
-                        if box.DistBillboard then box.DistBillboard.Enabled = false end
-                    end
+                else
+                    box.CanBeAimlocked = false
+                    if box.Highlight then box.Highlight.Enabled = false end
+                    if box.DistBillboard then box.DistBillboard.Enabled = false end
                 end
-            elseif (box.IsContainer and ESP_Config.ESP_Containers) or (box.IsLooseItem and ESP_Config.ESP_Loot) then
+            elseif isItem then
                 box.CanBeAimlocked = false
-                if box.Billboard or box.Highlight then
-                    local itemPos = nil
-                    if box.TargetAdornee and box.TargetAdornee:IsA("BasePart") then
-                        itemPos = box.TargetAdornee.Position
-                    elseif entity:IsA("BasePart") then
-                        itemPos = entity.Position
-                    end
-
-                    if itemPos then
-                        local studsDist = (cameraPos - itemPos).Magnitude
-                        -- [FIX] Culling Valuables: 25 Meter (87.5 Studs)
-                        local inRange = (studsDist <= 87.5)
-
-                        if inRange then
-                            if box.IsContainer then
-                                if box.Highlight then
-                                    if box.HasLoot then
-                                        if studsDist < 4 then
-                                            box.Highlight.Enabled = false
-                                        else
-                                            box.Highlight.Enabled = true
-                                            if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
-                                        end
-                                    else
-                                        box.Highlight.Enabled = false
-                                    end
-                                end
-                                if box.Billboard then box.Billboard.Enabled = false end
-                            elseif box.IsLooseItem then
-                                if box.Billboard then box.Billboard.Enabled = true end
-                                if box.Highlight then 
-                                    box.Highlight.Enabled = true
-                                    if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
-                                end
-                            end
-                        else
-                            if box.Billboard then box.Billboard.Enabled = false end
-                            if box.Highlight then box.Highlight.Enabled = false end
-                        end
-                    else
-                        if box.Billboard then box.Billboard.Enabled = false end
-                        if box.Highlight then box.Highlight.Enabled = false end
-                    end
+                local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
+                if not itemPos then
+                    if box.Highlight then box.Highlight.Enabled = false end
+                    if box.Billboard then box.Billboard.Enabled = false end
+                    continue
                 end
-            else
-                box.CanBeAimlocked = false
-                if box.Highlight then box.Highlight.Enabled = false end
-                if box.Billboard then box.Billboard.Enabled = false end
-                if box.DistBillboard then box.DistBillboard.Enabled = false end
+    
+                local studsDist = (cameraPos - itemPos).Magnitude
+                local inRange = (studsDist <= 87.5)
+    
+                if box.IsContainer then
+                    local showHighlight = inRange and box.HasLoot and (studsDist >= 4)
+                    if box.Highlight then box.Highlight.Enabled = showHighlight end
+                    if box.Billboard then box.Billboard.Enabled = false end
+                elseif box.IsLooseItem then
+                    if box.Highlight then box.Highlight.Enabled = inRange end
+                    if box.Billboard then box.Billboard.Enabled = inRange end
+                end
             end
         end
 
@@ -1288,13 +1255,7 @@ pcall(function()
         collectgarbage("collect")
     end
 
-    Players.PlayerRemoving:Connect(function(player)
-        if player == LocalPlayer then
-            task.spawn(PurgeAllGarbageMemory)
-            pcall(function() RunService:UnbindFromRenderStep("RomeoZach_Render") end)
-        else
-            RemoveESP(player)
-        end
-    end)
+    Players.PlayerRemoving:Connect(RemoveESP)
+    game:BindToClose(PurgeAllGarbageMemory)
 
 end)

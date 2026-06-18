@@ -1,5 +1,5 @@
 -- [[ ROMEOZACH SC - Project Delta v8 Ultimate (Rebuilt from Scratch) ]]
--- Author: RomeoZach & Gemini Code Assist (Unified Entity System & Advanced Features)
+-- Author: RomeoZach (Unified Entity System & Advanced Features)
 
 local success, errorMessage = pcall(function()
 

@@ -9,14 +9,10 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
-local Stats = game:GetService("Stats")
-local GuiService = game:GetService("GuiService")
 
--- // Core Variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- // Master Configuration State
 local ESP_Config = {
     Enabled = true,
     AimLock = true,
@@ -24,36 +20,27 @@ local ESP_Config = {
     BulletTracers = true,
     Crosshair = true,
     VisCheck = true,
-    GunMods = false, -- No Recoil & No Spread
-    FindWeapons = false, -- Item Finder for Guns
-    FindValuables = false, -- Item Finder for Valuables
-    FindKeys = false,
-    FindAttachments = false,
-    FindEquipment = false,
+    GunMods = false,
     PerformanceMode = false,
-    -- UI & Visual Settings
-    Color = Color3.fromRGB(255, 255, 255),
+    Color = Color3.fromRGB(255, 75, 75),
     WeaponColor = Color3.fromRGB(255, 255, 0),
     BulletColor = Color3.fromRGB(255, 255, 0),
-    TextSize = 13,
-    Font = Enum.Font.GothamBold,
-    FovRadius = 300
+    TextSize = 10,
+    Font = Enum.Font.SourceSansBold, -- Menggunakan font standar agar anti-crash
+    FovRadius = 120
 }
 
 -- // ESP Theme Colors
 local COLOR_VISIBLE = ESP_Config.Color
-local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165) -- Gray
-local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- Ungu Plum
+local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165)
+local COLOR_DEAD = Color3.fromRGB(221, 160, 221) -- Ungu Plum Mutlak
 
--- // Runtime Tables
 local ESP_Objects = {}
 local IsAiming = false
 local CurrentTargetEntity = nil
 local CurrentTargetChar = nil
-local WeaponConnections = {}
-local ActiveBulletTracers = {}
 local CrosshairLines = {}
-local AmmoBackups = {} -- For Gun Mods
+local AmmoBackups = {}
 local TextureBackups = {}
 local LightingBackups = {
     GlobalShadows = Lighting.GlobalShadows,
@@ -63,10 +50,10 @@ local LightingBackups = {
     OutdoorAmbient = Lighting.OutdoorAmbient,
     Brightness = Lighting.Brightness
 }
+
 local DisabledEffects = {}
 local LastPerformanceState = false
 
--- // Game-Specific Data
 local WallbangableMaterials = {
     [Enum.Material.Wood] = true, [Enum.Material.WoodPlanks] = true,
     [Enum.Material.Fabric] = true, [Enum.Material.Plastic] = true,
@@ -79,6 +66,9 @@ local sharedRaycastParams = RaycastParams.new()
 sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 sharedRaycastParams.IgnoreWater = true
 local ignoreList = {}
+
+-- // Barrier
+local success, errorMessage = pcall(function()
 
 -- // UI Framework
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)

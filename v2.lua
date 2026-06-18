@@ -1,8 +1,6 @@
 -- [[ ROMEOZACH SC - Project Delta v8 Ultimate (Rebuilt from Scratch) ]]
 -- Author: RomeoZach (Unified Entity System & Advanced Features)
 
-local success, errorMessage = pcall(function()
-
 -- // Roblox Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -66,9 +64,6 @@ local sharedRaycastParams = RaycastParams.new()
 sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 sharedRaycastParams.IgnoreWater = true
 local ignoreList = {}
-
--- // Barrier
-local success, errorMessage = pcall(function()
 
 -- // UI Framework
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)

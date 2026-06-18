@@ -1235,18 +1235,22 @@ local function PurgeAllGarbageMemory()
     collectgarbage("collect")
 end
 
--- Deteksi otomatis saat Anda keluar dari server medan tempur/extract menuju lobby utama
+-- [[ KONEKSI EVENT UTAMA DI BARIS AKHIR ]]
 Players.PlayerRemoving:Connect(function(player)
     if player == LocalPlayer then
         PurgeAllGarbageMemory()
         pcall(function() RunService:UnbindFromRenderStep("RomeoZach_Render") end)
+    else
+        if ESP_Objects[player] then
+            pcall(function()
+                local box = ESP_Objects[player]
+                if box.Highlight then box.Highlight:Destroy() end
+                if box.Billboard then box.Billboard:Destroy() end
+                if box.Connection then box.Connection:Disconnect() end
+            end)
+            ESP_Objects[player] = nil
+        end
     end
 end)
 
 print("[ROMEOZACH SC]: Skrip berhasil dikompilasi utuh 100%. Menu Visual Clean UI Aktif!")
-
-
-end)
-if not success then
-    warn("[ROMEOZACH SC SYSTEM ERROR]: " .. tostring(errorMessage))
-end

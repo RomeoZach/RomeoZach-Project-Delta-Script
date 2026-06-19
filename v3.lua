@@ -4,7 +4,7 @@ LogService.MessageOut:Connect(function(message, messageType)
         -- Paksa hapus dan bungkam pesan dari antrean console agar CPU tidak lag
         return
     end
-end)
+end) -- Pastikan hanya ada satu end) di sini sebelum teks --[[
 
 --[[
     ================================================================================

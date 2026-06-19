@@ -1,3 +1,10 @@
+local ScriptContext = game:GetService("ScriptContext")
+ScriptContext.Error:Connect(function(message, stackTrace, scriptInstance)
+    if scriptInstance and scriptInstance.Name == "TimeLabel" then
+        return
+    end
+end)
+
 --[[
     ================================================================================
     --|                                                                            |--
@@ -11,14 +18,8 @@ pcall(function()
 
     --[[
         ================================================
-        --        MODUL 1: CORE CONFIG & UI SETUP       --
+        --        MODULE 1: CORE CONFIG & UI SETUP        --
         ================================================
-        -- Kegunaan:
-        -- Bagian ini adalah fondasi dari seluruh skrip. Bertanggung jawab untuk:
-        -- 1. Inisialisasi semua service Roblox yang dibutuhkan.
-        -- 2. Menyimpan semua variabel konfigurasi utama (ESP_Config).
-        -- 3. Membuat seluruh antarmuka pengguna (GUI) dari awal, termasuk
-        --    menu utama dan tombol-tombol toggle.
     ]]
     -- // Roblox Services
     local Players = game:GetService("Players")
@@ -36,7 +37,7 @@ pcall(function()
     -- // Master Configuration State
     local ESP_Config = {
         AimLock = false,
-        ESP_Players = false,
+        ESP_Players = true,
         ESP_Corpses = false,
         ESP_Loot = false,
         ESP_Containers = false,
@@ -75,11 +76,13 @@ pcall(function()
     local TextureBackups = {}
     local LightingBackups = {
         GlobalShadows = Lighting.GlobalShadows,
-        FogStart = Lighting.FogStart,
         FogEnd = Lighting.FogEnd,
+        FogStart = Lighting.FogStart,
         Ambient = Lighting.Ambient,
         OutdoorAmbient = Lighting.OutdoorAmbient,
-        Brightness = Lighting.Brightness
+        Brightness = Lighting.Brightness,
+        Decoration = workspace.Terrain.Decoration,
+        FogColor = Lighting.FogColor
     }
     local DisabledEffects = {}
     local LastPerformanceState = false
@@ -99,9 +102,11 @@ pcall(function()
     local ignoreList = {}
 
     -- // UI Framework (Rebuilt - 2 Column Layout)
-    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 20)
-    if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
-        pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+    local oldUi = PlayerGui:FindFirstChild("RomeoZach_Ui")
+    if oldUi then
+        pcall(function() oldUi:Destroy() end)
+        task.wait(0.1)
     end
 
     local RomeoZachGui = Instance.new("ScreenGui")
@@ -133,10 +138,10 @@ pcall(function()
     -- // Main UI Frame
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 310) 
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -155)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(18, 19, 21)
-    MainFrame.BackgroundTransparency = 0.1
+    MainFrame.Size = UDim2.new(0, 480, 0, 260) 
+    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
+    MainFrame.BackgroundTransparency = 0.15
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
     MainFrame.Draggable = true
@@ -144,81 +149,59 @@ pcall(function()
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     local MainStroke = Instance.new("UIStroke", MainFrame)
     MainStroke.Thickness = 1
-    MainStroke.Color = Color3.fromRGB(50, 53, 58)
+    MainStroke.Color = Color3.fromRGB(45, 48, 53)
     MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     -- // Header 
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta SC - Rebuilt"
-    Header.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Header.Text = "Project Delta V5 - Final"
+    Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
     Header.TextXAlignment = Enum.TextXAlignment.Center
 
-    -- // Garis Pemisah (Divider)
-    local Divider = Instance.new("Frame", MainFrame)
-    Divider.Size = UDim2.new(1, -30, 0, 1)
-    Divider.Position = UDim2.new(0, 15, 0, 38)
-    Divider.BackgroundColor3 = Color3.fromRGB(50, 53, 58)
-    Divider.BorderSizePixel = 0
-
     -- // Container & Padding
     local Container = Instance.new("Frame", MainFrame)
-    Container.Size = UDim2.new(1, 0, 1, -40)
-    Container.Position = UDim2.new(0, 0, 0, 40)
+    Container.Size = UDim2.new(1, -20, 1, -45)
+    Container.Position = UDim2.new(0, 10, 0, 35)
     Container.BackgroundTransparency = 1
-
-    local ContainerPadding = Instance.new("UIPadding", Container)
-    ContainerPadding.PaddingTop = UDim.new(0, 12)
-    ContainerPadding.PaddingBottom = UDim.new(0, 12)
-    ContainerPadding.PaddingLeft = UDim.new(0, 15)
-    ContainerPadding.PaddingRight = UDim.new(0, 15)
 
     -- // UIGridLayout
     local UIGridLayout = Instance.new("UIGridLayout", Container)
     UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 8)
-    UIGridLayout.CellSize = UDim2.new(0.5, -5, 0, 42)
+    UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+    UIGridLayout.CellSize = UDim2.new(0.5, -5, 0, 40)
 
     local function CreateToggle(labelText, configKey)
         local Frame = Instance.new("Frame", Container)
-        Frame.BackgroundColor3 = Color3.fromRGB(26, 28, 33)
+        Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27)
         Frame.BorderSizePixel = 0
         Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
 
         local Label = Instance.new("TextLabel", Frame)
         Label.Size = UDim2.new(0.65, 0, 1, 0)
-        Label.Position = UDim2.new(0, 15, 0, 0)
+        Label.Position = UDim2.new(0, 10, 0, 0)
         Label.BackgroundTransparency = 1
         Label.Text = labelText
-        Label.TextColor3 = Color3.fromRGB(210, 210, 215)
+        Label.TextColor3 = Color3.fromRGB(200, 200, 205)
         Label.TextSize = 12
-        Label.Font = Enum.Font.GothamMedium
+        Label.Font = Enum.Font.Gotham
         Label.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- Latar Belakang Toggle (Track)
         local Track = Instance.new("Frame", Frame)
-        Track.Size = UDim2.new(0, 42, 0, 22)
-        Track.Position = UDim2.new(1, -55, 0.5, -11)
-        Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(45, 48, 54)
+        Track.Size = UDim2.new(0, 40, 0, 20)
+        Track.Position = UDim2.new(1, -50, 0.5, -10)
+        Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
         Instance.new("UICorner", Track).CornerRadius = UDim.new(1, 0)
 
-        -- Lingkaran Indikator (Knob)
         local Knob = Instance.new("Frame", Track)
-        Knob.Size = UDim2.new(0, 18, 0, 18)
-        Knob.Position = ESP_Config[configKey] and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
+        Knob.Size = UDim2.new(0, 16, 0, 16)
+        Knob.Position = ESP_Config[configKey] and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
         Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
-        
-        -- Bayangan Tipis pada Knob
-        local KnobShadow = Instance.new("UIStroke", Knob)
-        KnobShadow.Thickness = 1
-        KnobShadow.Color = Color3.fromRGB(0, 0, 0)
-        KnobShadow.Transparency = 0.8
 
-        -- Tombol Transparan untuk Klik
         local Btn = Instance.new("TextButton", Track)
         Btn.Size = UDim2.new(1, 0, 1, 0)
         Btn.BackgroundTransparency = 1
@@ -227,13 +210,9 @@ pcall(function()
         Btn.MouseButton1Click:Connect(function()
             ESP_Config[configKey] = not ESP_Config[configKey]
             local isActive = ESP_Config[configKey]
-            
-            TweenService:Create(Track, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                BackgroundColor3 = isActive and ESP_Config.Color or Color3.fromRGB(45, 48, 54)
-            }):Play()
-            
-            TweenService:Create(Knob, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                Position = isActive and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
+            TweenService:Create(Track, TweenInfo.new(0.2), { BackgroundColor3 = isActive and ESP_Config.Color or Color3.fromRGB(40, 43, 48) }):Play()
+            TweenService:Create(Knob, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = isActive and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             }):Play()
 
             if configKey == "AimLock" and not ESP_Config.AimLock then CurrentTargetChar = nil end
@@ -258,18 +237,11 @@ pcall(function()
     local CrosshairBtn = CreateToggle("Tiny Center Crosshair", "Crosshair")
     local GunModsBtn = CreateToggle("No Recoil & No Spread", "GunMods")
     local PerformanceBtn = CreateToggle("Performance Mode", "PerformanceMode")
-local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
+    local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --          MODUL 2: INPUT & UTILITIES          --
-        ================================================
-        -- Kegunaan:
-        -- Menangani semua input dari pengguna (keyboard & mouse) dan
-        -- menyediakan fungsi-fungsi utilitas dasar yang akan sering
-        -- dipanggil oleh modul lain, seperti:
-        -- 1. GetBulletSpeed: Mendapatkan kecepatan peluru dari senjata.
-        -- 2. IsEntityDead: Memeriksa status hidup/mati sebuah karakter.
+        --          MODULE 2: INPUT & UTILITIES           --
     ]]
     -- // Input Handling
     UserInputService.InputBegan:Connect(function(input, gp)
@@ -300,31 +272,25 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
     end
 
     local function IsEntityDead(char)
-        -- Jika parent nil atau objek tidak valid, kembalikan false mutlak agar tidak terdeteksi sebagai mayat hantu.
         if not char or typeof(char) ~= "Instance" or not char.Parent then return false end
         
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             if hum.Health <= 0 or hum.Health ~= hum.Health then return true end
             if hum:GetState() == Enum.HumanoidStateType.Dead then return true end
-            return false -- Jika punya humanoid tapi tidak mati, pasti masih hidup
+            return false
         end
         
         local nameLower = string.lower(char.Name)
-        
         if char:IsA("Model") then
-            -- Validasi ketat: HANYA dievaluasi jika Model memiliki sisa anatomi manusia/ragdoll
             if char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") then
-                -- Pindahkan pengecekan filter string ke DALAM blok ini agar objek map tidak ikut dievaluasi
                 if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or nameLower:find("body") then 
                     return true 
                 end
-                return false -- Punya tubuh tapi tidak teridentifikasi mati (bukan mayat)
+                return false
             end
-            return false -- MUTLAK BUKAN MAYAT! Objek ini hanya kotak/kontainer/map biasa. (Memecahkan masalah Crate & Bag)
+            return false
         end
-        
-        -- Filter string murni untuk objek tunggal yang BUKAN berbentuk Model (Part/Mesh individu)
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or nameLower:find("body") then 
             return true 
         end
@@ -334,26 +300,24 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --         MODUL 3: VISIBILITY ENGINE           --
+        --         MODULE 3: VISIBILITY ENGINE          --
         ================================================
-        -- Kegunaan:
-        -- Ini adalah otak dari sistem Aimlock dan penentuan warna ESP.
-        -- 1. checkTargetVisibility: Menembakkan sinar (raycast) untuk
-        --    memeriksa apakah target terhalang tembok atau tidak.
-        -- 2. GetBestTargetInFOV: Mencari target terbaik yang berada
-        --    di dalam lingkaran FOV (Field of View) tak terlihat.
     ]]
     -- // Core Systems
     local function checkTargetVisibility(targetPart, targetChar)
-        table.clear(ignoreList) -- [FIX] Pembersihan buffer mutlak di awal fungsi.
+        table.clear(ignoreList)
 
-        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color end
-        local lpChar = LocalPlayer.Character
-        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED end
-        
         local origin = Camera.CFrame.Position
         local targetPos = targetPart.Position
         local direction = targetPos - origin
+        
+        if direction.Magnitude < 7 then
+            return "Visible", ESP_Config.Color, true
+        end
+
+        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color, false end
+        local lpChar = LocalPlayer.Character
+        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED, false end
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
@@ -362,50 +326,53 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 30 then return "Blocked", COLOR_BLOCKED end -- Batas aman untuk performa
+            if loopCounter >= 30 then return "Blocked", COLOR_BLOCKED, false end
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
 
-            if not raycastResult then return "Visible", ESP_Config.Color end
+            if not raycastResult then return "Visible", ESP_Config.Color, false end
             
             local hitInstance = raycastResult.Instance
-            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", COLOR_BLOCKED end
-            if hitInstance:IsDescendantOf(targetPart.Parent) then return "Visible", ESP_Config.Color end
+            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", COLOR_BLOCKED, false end
+            if hitInstance:IsDescendantOf(targetPart.Parent) then return "Visible", ESP_Config.Color, false end
 
             local mat = raycastResult.Material
             local isWallbangable = WallbangableMaterials[mat] or hitInstance.Transparency >= 0.8 or hitInstance.Name:lower():find("grass") or hitInstance.Name:lower():find("glass") or hitInstance.Name:lower():find("ignore")
             
             if isWallbangable then
                 table.insert(ignoreList, hitInstance)
-                -- [FIX] Jangan geser 'origin', biarkan raycast menembus dari titik awal.
             else
-                return "Blocked", COLOR_BLOCKED
+                return "Blocked", COLOR_BLOCKED, false
             end
         end
     end
 
     local function GetBestTargetInFOV()
         local bestEntity, bestChar = nil, nil
-        -- [FIX AIMLOCK] Radius FOV diperbesar menjadi 300 piksel agar lebih mudah mengunci target.
         local shortestPixelDist = 300
         local centerPos = Camera.ViewportSize / 2
         local origin = Camera.CFrame.Position
         
         for entity, box in pairs(ESP_Objects) do
-            if not box.CanBeAimlocked then continue end -- Saklar pengaman dari Render Loop
-            
+            -- [REVISI] Menghapus 'if not box.CanBeAimlocked then continue end' untuk mencegah Aimlock macet.
+
             local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             if char and char ~= LocalPlayer.Character and char.Parent then
-                local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart", true)
+                -- [REVISI] Memaksa pencarian part ke kepala
+                local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
                 if head and not IsEntityDead(char) then
+                    -- [REVISI] Pengecekan visibilitas langsung di dalam fungsi
+                    local visStatus, _, _ = checkTargetVisibility(head, char)
+                    if visStatus ~= "Visible" then continue end
+
                     local studsDist = (origin - head.Position).Magnitude
                     
                     local isPlayer = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
                     if isPlayer and studsDist > 3150 then continue end
                     if not isPlayer and studsDist > 1575 then continue end
                     
-                    -- [MAKSIMALKAN AIMLOCK] Kalkulasi prediksi dipindahkan ke sini untuk pencarian target yang lebih cerdas.
+                    -- [KALIBRASI] Formula disamakan persis dengan Aimlock Logic di Render Loop
                     local bulletSpeed = GetBulletSpeed()
                     if bulletSpeed <= 0 then bulletSpeed = 1500 end
                     local timeToTarget = studsDist / bulletSpeed
@@ -431,22 +398,17 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --            MODUL 4: ESP MANAGER            --
+        --      MODULE 4: ESP MANAGER (REVISED)           --
         ================================================
-        -- Kegunaan:
-        -- Bertindak sebagai "pabrik" untuk semua objek visual ESP.
-        -- 1. CreateESP: Membuat objek Highlight dan BillboardGui baru
-        --    untuk entitas yang terdeteksi.
-        -- 2. RemoveESP: Menghancurkan objek visual dan membersihkan
-        --    memori ketika entitas hilang atau keluar dari permainan.
     ]]
-    -- // ESP Creation & Management
+    -- // ESP Creation & Management using a Single, Reliable Highlight
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
             if box.Highlight then box.Highlight:Destroy() end
-            if box.Billboard then box.Billboard:Destroy() end
             if box.DistBillboard then box.DistBillboard:Destroy() end
+            if box.Highlight_Item then box.Highlight_Item:Destroy() end
+            if box.Billboard_Item then box.Billboard_Item:Destroy() end
             if box.Connection then box.Connection:Disconnect() end
             ESP_Objects[entity] = nil
         end
@@ -455,37 +417,59 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
     local function CreateESP(entity, isPlayer)
         if isPlayer and entity == LocalPlayer then return end
         if ESP_Objects[entity] then return end
-        local box = {Highlight = nil, Billboard = nil, DistBillboard = nil, NameLabel = nil, DistLabel = nil, HpLabel = nil, Connection = nil}
+
+        local box = {
+            Highlight = nil,
+            DistBillboard = nil,
+            DistLabel = nil,
+            Connection = nil,
+            CanBeAimlocked = false,
+            IsHelicopter = false,
+        }
         
         local function ApplyVisuals(char)
             if not char then return end
             
-            -- SINKRONISASI SIKLUS RESPAWN: Bersihkan sisa cache visual lama jika player respawn
-            if box.Highlight then box.Highlight:Destroy(); box.Highlight = nil end
-            if box.Billboard then box.Billboard:Destroy(); box.Billboard = nil end
-            if box.DistBillboard then box.DistBillboard:Destroy(); box.DistBillboard = nil end
+            -- [REVISI] Tambahkan delay untuk menangani re-streaming AI
+            if not isPlayer then
+                task.wait(0.5)
+                if not char or not char.Parent then return end -- Verifikasi ulang setelah delay
+            end
 
-            -- [PERBAIKAN RESPAWN FINAL] Paksa reset status cache kematian. Ini adalah satu-satunya sumber kebenaran
-            -- untuk status hidup/mati saat visual dibuat ulang.
-            box.IsDeadCache = false
+            if box.Highlight then box.Highlight:Destroy() end
+            if box.DistBillboard then box.DistBillboard:Destroy() end
 
-            box.TargetAdornee = char -- [FIX] FATAL BUG: Definisi parent target untuk Highlight Musuh agar tidak terbuang
+            box.Character = char
             
-            local hl = char:FindFirstChildOfClass("Highlight") or Instance.new("Highlight", char)
-            hl.FillColor = COLOR_VISIBLE; hl.FillTransparency = 0.5; hl.OutlineColor = COLOR_VISIBLE; hl.OutlineTransparency = 0; hl.Adornee = char; box.Highlight = hl
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+            local initialVisStatus, initialVisColor = "Blocked", COLOR_BLOCKED
+            if rootPart then
+                initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
+            end
+
+            -- [REVISI] Hanya menggunakan SATU highlight yang menempel pada seluruh model
+            local hl = Instance.new("Highlight", char)
+            hl.FillColor = initialVisColor
+            hl.OutlineColor = initialVisColor
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
             hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            box.Highlight = hl
             
             local distBb = Instance.new("BillboardGui", char)
-            distBb.Name = "RomeoZach_DistBillboard"; distBb.Size = UDim2.new(0, 200, 0, 50); distBb.AlwaysOnTop = true
+            distBb.Name = "RomeoZach_DistBillboard"
+            distBb.Size = UDim2.new(0, 200, 0, 50)
+            distBb.AlwaysOnTop = true
             distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LeftFoot")
-            distBb.StudsOffset = Vector3.new(0, -4.5, 0) -- Jauhkan label meteran ke bawah kaki
+            distBb.StudsOffset = Vector3.new(0, -4.5, 0)
             box.DistBillboard = distBb
             
             local distTxt = Instance.new("TextLabel", distBb)
             distTxt.Size = UDim2.new(1, 0, 1, 0); distTxt.BackgroundTransparency = 1
-            distTxt.Text = ""; distTxt.TextColor3 = COLOR_VISIBLE; distTxt.TextSize = 10; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0; box.DistLabel = distTxt
+            distTxt.Text = ""; distTxt.TextColor3 = initialVisColor; distTxt.TextSize = 13; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0
             distTxt.TextYAlignment = Enum.TextYAlignment.Top
             Instance.new("UIStroke", distTxt).Thickness = 1.5
+            box.DistLabel = distTxt
         end
         
         if isPlayer then 
@@ -499,15 +483,8 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --         MODUL 5: SCANNER UTILITIES         --
+        --         MODULE 5: SCANNER UTILITIES          --
         ================================================
-        -- Kegunaan:
-        -- Kumpulan fungsi "filter" yang membantu pemindai utama.
-        -- 1. IsValidEntity: Memvalidasi apakah sebuah objek adalah
-        --    musuh/mayat yang valid atau hanya properti map.
-        -- 2. GetValuableMatch: Mencocokkan nama item dengan daftar
-        --    item berharga yang sudah ditentukan.
-        -- 3. checkContainerLoot: Memeriksa isi dari sebuah kontainer.
     ]]
     -- // Entity Scanner (Player, AI, Items)
     local function IsValidEntity(obj)
@@ -517,32 +494,22 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
         
         local nameLower = string.lower(obj.Name)
         
-        -- [PERBAIKAN MUTLAK] Jika objek namanya mengandung unsur container, wadah, crate, atau properti map statis, DILARANG KERAS lolos sebagai musuh/mayat (Langsung return false)!
         if nameLower:find("crate") or nameLower:find("box") or nameLower:find("cache") or nameLower:find("bag") or nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then
             return false
         end
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
-        -- 1. PENGETATAN SENSOR ENTITAS HIDUP
-        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
-            return false
-        end
-
-        -- [FIX] Database bot mutlak Project Delta
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do
             if nameLower:find(kw) then return true end
         end
 
-        -- Deteksi senjata terpasang pada model sebagai parameter entitas musuh
         if obj:FindFirstChildOfClass("Tool") then return true end
         
         if obj:FindFirstChildOfClass("Humanoid") then return true end
-        -- [SOLUSI UTAMA] Perluas deteksi anatomi untuk NPC non-standar (seperti Highway Bandit) yang mungkin tidak punya HumanoidRootPart tapi punya Torso.
         if obj:FindFirstChild("Head") and (obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("UpperTorso")) then return true end
         
-        -- [PERBAIKAN FATAL] Kunci deteksi ragdoll di dalam fungsi utama agar mayat baru hasil kill langsung lolos validasi
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or nameLower:find("body") then 
             return true 
         end
@@ -555,14 +522,12 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
         if nLower:find("cashierdesk") or nLower:find("desk") or nLower:find("boulder") or nLower:find("mesh") then return false, nil end
 
-        -- [FIX] STRIKTISASI BLACKLIST: Menyaring geometri map dan batu agar tak menyala emas
         local blacklistKeywords = {"cashierdesk", "cashier_desk", "desk", "boulder", "mesh", "wall", "floor", "terrain", "stair", "door", "window", "roof", "building", "fence", "glass", "medium"}
         for _, kw in ipairs(blacklistKeywords) do
             if nLower:find(kw) then return false, nil end
         end
 
         if ESP_Config.FindWeapons then
-            -- Database senjata berharga tinggi hasil riset Project Delta Wiki (Huruf kecil semua, tanpa tanda %)
             local weaponKeywords = {
                 "golden", "mp5sd", "val", "asval", "m4a1", "m4", "fn-fal", "fal", 
                 "svd", "pkm", "r700", "remington", "tfz", "mod-98", "mod98", "rpg-7", "rpg7", 
@@ -570,17 +535,13 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
             }
             
             for _, kw in ipairs(weaponKeywords) do
-                -- SINKRONISASI OTOMATIS: Mengubah tanda minus (-) menjadi %%- secara dinamis agar aman dibaca Lua Match
                 local escapedKw = kw:gsub("%-", "%%-")
-                
-                -- Deteksi presisi menggunakan word boundary %f[%W] agar tidak terjadi salah deteksi parsial
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then 
                     return true, desc.Name 
                 end
             end
         end
         if ESP_Config.FindValuables then
-            -- LOGIKA DETEKSI COMPONENT BERLAPIS (NVG/Thermal pada Mount/Helmet)
             if nLower:find("mount") or nLower:find("helmet") or nLower:find("headset") then
                 local highValueOptics = {"nvg", "goggles", "reap-ir", "reapir", "thermal", "onv-9", "onv9", "quadnvg", "quad"}
                 for _, optic_kw in ipairs(highValueOptics) do
@@ -590,12 +551,10 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                 end
             end
 
-            -- Database barang berharga (Valuables) kasta tertinggi hasil riset Project Delta Wiki
             local valuableKeywords = {
                 "solter", "gold", "sps", "watch", "tix", "ticket", 
                 "cpu", "ram", "ssd", "gpu", "smartphone", "phone",
                 "ruble", "rubles", "cash", "money",
-                -- Mempertahankan NVG/Thermal karena terikat dengan logika Component Berlapis di atasnya
                 "nvg", "goggles", "reap-ir", "reapir", "thermal", "onv-9", "onv9", "quadnvg", "quad"
             }
             
@@ -616,20 +575,17 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
             end
         end
         if ESP_Config.FindAttachments then
-            -- Database aksesoris senjata kasta tertinggi hasil riset Project Delta Wiki
             local attachmentKeywords = {
                 "lpvo", "rifle scope", "reap-ir", "reapir", "holographic", "acog", 
                 "laser pointer", "peq-15", "peq15", "socom556", "rc2", 
                 "muzzle brake", "pbs-1", "pbs1"
             }
             for _, kw in ipairs(attachmentKeywords) do 
-                -- SINKRONISASI OTOMATIS: Mengubah tanda minus (-) menjadi %%- secara dinamis agar aman dibaca Lua Match
                 local escapedKw = kw:gsub("%-", "%%-")
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then return true, desc.Name end
             end
         end
         if ESP_Config.FindEquipment then
-            -- Database armor, tas, dan visor kasta tertinggi hasil riset ingame (Huruf kecil semua, tanpa tanda %)
             local equipKeywords = {
                 "juggernaut", "hspv", "tactical", "6b45", "kulon", "concealed", 
                 "attak", "tortilla", "titan", "low cut", "fast mt", "quad", 
@@ -637,10 +593,7 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
             }
             
             for _, kw in ipairs(equipKeywords) do 
-                -- SINKRONISASI OTOMATIS: Mengubah tanda minus (-) menjadi %%- secara dinamis agar aman dibaca Lua Match
                 local escapedKw = kw:gsub("%-", "%%-")
-                
-                -- Deteksi presisi menggunakan kata utuh %f[%W] agar tidak terjadi salah deteksi parsial
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then 
                     return true, desc.Name 
                 end
@@ -652,14 +605,11 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
     local function checkContainerLoot(container)
         if not (ESP_Config.FindWeapons or ESP_Config.FindValuables or ESP_Config.FindKeys or ESP_Config.FindAttachments or ESP_Config.FindEquipment) then return false, "" end
         for _, desc in ipairs(container:GetDescendants()) do
-            -- [FIX FATAL] Evaluasi BasePart TAPI block nama part bawaan container (engsel, keypad) agar senjata/GPU 3D tetap terbaca
             local isContainerPart = desc.Name:lower():find("mount") or desc.Name:lower():find("keypad") or desc.Name:lower():find("hinge") or desc.Name:lower():find("door") or desc.Name:lower():find("lock") or desc.Name:lower():find("frame") or desc.Name:lower():find("drawer")
             if not isContainerPart then
                 local isMatch, matchName = GetValuableMatch(desc)
                 if isMatch then return true, matchName end
             end
-            
-            -- [PERBAIKAN] Project Delta sering menyembunyikan mata uang & loot di dalam memori StringValue (Contoh: Name="Slot1", Value="Rubles")
             if desc:IsA("StringValue") and desc.Value and desc.Value ~= "" then
                 local isValueMatch, _ = GetValuableMatch({Name = desc.Value})
                 if isValueMatch then return true, desc.Value end
@@ -670,33 +620,25 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --       MODUL 6: ENTITY SCANNER THREAD         --
+        --       MODULE 6: ENTITY SCANNER THREAD        --
         ================================================
-        -- Kegunaan:
-        -- Thread yang berjalan setiap 2 detik untuk memindai entitas
-        -- dinamis seperti Player, AI, dan Mayat. Ini adalah pemindai
-        -- berkecepatan tinggi untuk target yang sering bergerak.
     ]]
     local isEntityScanning = false
 
     task.spawn(function()
         while task.wait(2) do
-            -- [OPTIMISASI] Jika semua fitur ESP entitas mati, lewati seluruh siklus pemindaian.
             if not ESP_Config.ESP_Players and not ESP_Config.ESP_Corpses then continue end
 
             if isEntityScanning then continue end
             isEntityScanning = true
-            
             local lpChar = LocalPlayer.Character
             if not lpChar then isEntityScanning = false; continue end
 
-            -- 1. Player Scan (Pemain Asli)
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and not ESP_Objects[p] then CreateESP(p, true) end
             end
             task.wait()
 
-            -- 2. Entity Scan Function
             local function ScanEntity(obj)
                 local nameLower = obj.Name:lower()
                 
@@ -733,44 +675,20 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                         end
                     end
 
-                    local isDead = IsEntityDead(obj)
-
-                    -- [OPTIMISASI] Jangan proses lebih lanjut jika fitur ESP yang relevan mati.
-                    if (isDead and not ESP_Config.ESP_Corpses) or (not isDead and not ESP_Config.ESP_Players) then return end
-
-                    if ESP_Objects[obj] then
-                        if not ESP_Objects[obj].IsContainer and not ESP_Objects[obj].IsLooseItem then
-                            if isDead and not ESP_Objects[obj].IsDeadCache then
-                                RemoveESP(obj)
+                    if not ESP_Objects[obj] then
+                        local isDead = IsEntityDead(obj)
+                        if (isDead and ESP_Config.ESP_Corpses) or (not isDead and ESP_Config.ESP_Players) then
+                            if IsValidEntity(obj) or isHeli then
                                 CreateESP(obj, false)
-                                if ESP_Objects[obj] then
-                                    ESP_Objects[obj].IsDeadCache = true
-                                    if isHeli then ESP_Objects[obj].IsHelicopter = true end
+                                if ESP_Objects[obj] then 
+                                    if isHeli then ESP_Objects[obj].IsHelicopter = true end 
                                 end
-                            elseif not isDead and ESP_Objects[obj].IsDeadCache then
-                                RemoveESP(obj)
-                                CreateESP(obj, false)
-                            end
-                        end
-                    else
-                        if IsValidEntity(obj) or isHeli then
-                            CreateESP(obj, false)
-                            if ESP_Objects[obj] then 
-                                ESP_Objects[obj].IsDeadCache = isDead 
-                                if isHeli then ESP_Objects[obj].IsHelicopter = true end
-                            end
-                        elseif isDead then
-                            CreateESP(obj, false)
-                            if ESP_Objects[obj] then 
-                                ESP_Objects[obj].IsDeadCache = true 
-                                if isHeli then ESP_Objects[obj].IsHelicopter = true end
                             end
                         end
                     end
                 end
             end
 
-            -- 3. Jalankan Pemindaian di Folder-Folder Penting
             for _, child in ipairs(workspace:GetChildren()) do
                 if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Terrain" and child.Name ~= "Camera" then
                     ScanEntity(child)
@@ -794,24 +712,17 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --         MODUL 7: ITEM SCANNER THREAD         --
+        --         MODULE 7: ITEM SCANNER THREAD        --
         ================================================
-        -- Kegunaan:
-        -- Thread yang berjalan setiap 2 detik untuk memindai objek
-        -- statis seperti kontainer dan item yang tergeletak. Intervalnya
-        -- sedikit lebih lambat untuk menghemat kinerja.
     ]]
     local isItemScanning = false
 
     task.spawn(function()
-        while task.wait(2) do -- Interval dipercepat dari 5 detik menjadi 2 detik
+        while task.wait(2) do
             if isItemScanning then continue end
             isItemScanning = true
+            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; continue end
 
-            -- [OPTIMISASI] Jika semua fitur ESP item mati, lewati seluruh siklus pemindaian.
-            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then continue end
-
-            -- C. Containers Scan
             local containersFolder = workspace:FindFirstChild("Containers")
             if containersFolder and ESP_Config.ESP_Containers then
                 for _, obj in ipairs(containersFolder:GetChildren()) do
@@ -852,7 +763,7 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                                 
                                 bb.Enabled = false; hl.Enabled = false
                                 
-                                ESP_Objects[obj] = {Billboard = bb, Highlight = hl, IsContainer = true, HasLoot = hasLoot, TargetAdornee = adorneePart}
+                                ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, IsContainer = true, HasLoot = hasLoot, TargetAdornee = adorneePart}
                             end
                         else
                             ESP_Objects[obj].HasLoot = hasLoot
@@ -862,7 +773,6 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
             end
             task.wait()
 
-            -- D. Loose Items Scan
             local droppedItemsFolder = workspace:FindFirstChild("DroppedItems")
             if droppedItemsFolder and ESP_Config.ESP_Loot then
                 for _, obj in ipairs(droppedItemsFolder:GetChildren()) do
@@ -901,7 +811,7 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                             hl.FillTransparency = 0.7; hl.OutlineTransparency = 0.5; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                             hl.Adornee = adorneePart; hl.Parent = adorneePart
                             
-                            ESP_Objects[obj] = {Billboard = bb, Highlight = hl, TargetAdornee = adorneePart, IsLooseItem = true, ItemName = matchName}
+                            ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, TargetAdornee = adorneePart, IsLooseItem = true, ItemName = matchName}
                         end
                     end
                 end
@@ -914,17 +824,11 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --         MODUL 8: MISC SCANNER THREAD         --
+        --       MODULE 8: MISCELLANEOUS SCANNER THREAD     --
         ================================================
-        -- Kegunaan:
-        -- Thread yang berjalan setiap 3 detik untuk menangani fitur-fitur
-        -- tambahan yang tidak terkait langsung dengan ESP, seperti:
-        -- 1. Gun Mods: Mengatur recoil dan spread senjata.
-        -- 2. Performance Mode: Mengubah pengaturan grafis game.
     ]]
     task.spawn(function()
-        while task.wait(3) do -- Loop ini bisa berjalan lebih lambat karena tidak krusial untuk visual real-time
-            -- 4. Gun Mods
+        while task.wait(3) do
             local ammoTypes = game.ReplicatedStorage:FindFirstChild("AmmoTypes")
             if ammoTypes then
                 for _, ammo in pairs(ammoTypes:GetChildren()) do
@@ -942,9 +846,9 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                 end
             end
             
-            -- 5. Performance Mode & Weather Control
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
+                InitialPerformanceBoost() -- Panggil lagi untuk memastikan semua bersih
                 
                 if ESP_Config.PerformanceMode then
                     for _, obj in pairs(Lighting:GetDescendants()) do
@@ -997,39 +901,15 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                         pcall(function() workspace.Terrain.Decoration = false end)
                     end)
                 else
+                    -- Mengembalikan ke pengaturan semula
+                    Lighting.FogEnd = LightingBackups.FogEnd
+                    Lighting.FogStart = LightingBackups.FogStart
+                    workspace.Terrain.Decoration = LightingBackups.Decoration
+                    
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
                     end
                     table.clear(DisabledEffects)
-                    pcall(function() workspace.Terrain.Decoration = true end)
-                    
-                    task.spawn(function()
-                        local cnt = 0
-                        for obj, data in pairs(TextureBackups) do
-                            cnt = cnt + 1
-                            if cnt % 25 == 0 then task.wait() end
-                            if obj and obj.Parent then
-                                if obj:IsA("BasePart") then
-                                    if data.Material then obj.Material = data.Material end
-                                    if data.CastShadow ~= nil then obj.CastShadow = data.CastShadow end
-                                elseif obj:IsA("Texture") or obj:IsA("Decal") then
-                                    if data.Transparency then obj.Transparency = data.Transparency end
-                                elseif obj:IsA("Sound") then
-                                    if data.Volume then obj.Volume = data.Volume end
-                                elseif obj:IsA("Atmosphere") then
-                                    if data.Density then obj.Density = data.Density end
-                                end
-                            end
-                        end
-                        table.clear(TextureBackups)
-                    end)
-                    
-                    Lighting.GlobalShadows = LightingBackups.GlobalShadows
-                    Lighting.FogEnd = LightingBackups.FogEnd
-                    Lighting.FogStart = LightingBackups.FogStart
-                    Lighting.Brightness = LightingBackups.Brightness
-                    Lighting.Ambient = LightingBackups.Ambient
-                    Lighting.OutdoorAmbient = LightingBackups.OutdoorAmbient
                 end
             end
             
@@ -1040,18 +920,33 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
         end
     end)
 
+    local function InitialPerformanceBoost()
+        -- HAPUS KABUT & AWAN
+        Lighting.FogEnd = 999999
+        Lighting.FogStart = 999999
+        for _, obj in pairs(Lighting:GetDescendants()) do
+            if obj:IsA("Atmosphere") or obj:IsA("Clouds") then
+                pcall(function() obj:Destroy() end)
+            end
+        end
+        -- HAPUS HUJAN & SUARA
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("rain") and (obj:IsA("Sound") or obj:IsA("ParticleEmitter")) then
+                pcall(function() obj.Enabled = false; obj:Destroy() end)
+            end
+        end
+        -- HAPUS RUMPUT 3D
+        workspace.Terrain.Decoration = false
+        LightingBackups.Decoration = false
+    end
+
+    InitialPerformanceBoost()
+
     --[[
         ================================================
-        --           MODUL 9: RENDER & AIMLOCK          --
+        --         MODULE 9: RENDER LOOP & AIMLOCK        --
         ================================================
-        -- Kegunaan:
-        -- Ini adalah mesin utama yang berjalan setiap frame.
-        -- 1. BindToRenderStep: Mengikat fungsi ke siklus render Roblox.
-        -- 2. Memperbarui posisi, warna, dan visibilitas semua objek ESP.
-        -- 3. Menjalankan logika Aimlock jika diaktifkan dan tombol
-        --    bidik ditekan.
     ]]
-    -- // Main Render Loop
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
         local lpChar = LocalPlayer.Character
         local lpHead = lpChar and lpChar:FindFirstChild("Head")
@@ -1064,150 +959,145 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
                 continue
             end
             
-            local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
+            local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
-            -- KUNCI PRIORITAS WARNA MAYAT: Evaluasi di posisi paling atas sebelum penetapan variabel
-            local isDead = IsEntityDead(char)
-            if box.IsDeadCache == true then isDead = true end -- KUNCI MUTLAK: Jika memori cache mayat true, paksa masuk ke kondisi mati mutlak
-            local isItem = false
-            
-            if box.IsContainer or box.IsLooseItem then
-                isItem = true
-            end
-            if isDead then
-                isItem = false -- Mutlak kunci agar mayat tidak bisa dikira item/container dari jarak dekat maupun jauh
-            end
-            
-            -- [OPTIMISASI] Cek toggle spesifik sebelum merender.
-            local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses)
-
-            if not shouldProcess then
+            local function HideVisuals()
                 box.CanBeAimlocked = false
                 if box.Highlight then box.Highlight.Enabled = false end
                 if box.DistBillboard then box.DistBillboard.Enabled = false end
+                if box.Highlight_Item then box.Highlight_Item.Enabled = false end
+                if box.Billboard_Item then box.Billboard_Item.Enabled = false end
+            end
+
+            if not char or not char.Parent or char == lpChar then
+                HideVisuals()
                 continue
             end
-    
-            if not isItem and char and char ~= lpChar then
-                local rootPart = char:IsA("BasePart") and char or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
-                if isDead and not rootPart and char then rootPart = char:FindFirstChildWhichIsA("BasePart", true) or char end
-    
+
+            local isDead = IsEntityDead(char)
+            local isItem = box.IsContainer or box.IsLooseItem
+            if isDead then isItem = false end
+            
+            local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (isItem and (ESP_Config.ESP_Loot or ESP_Config.ESP_Containers))
+
+            if not shouldProcess then
+                HideVisuals()
+                continue
+            end
+
+            if not isItem then
+                -- BLOK KHUSUS ENTITAS KARAKTER (PLAYER/AI/MAYAT)
+                local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
+
                 if not rootPart then
-                    box.CanBeAimlocked = false
-                    if box.Highlight then box.Highlight.Enabled = false end
-                    if box.DistBillboard then box.DistBillboard.Enabled = false end
+                    HideVisuals()
                     continue
                 end
-    
-                local rootPos = rootPart:IsA("BasePart") and rootPart.Position or rootPart:GetPivot().Position
+
+                local rootPos = rootPart.Position
                 local studsDist = (cameraPos - rootPos).Magnitude
-                
+                local distMeter = math.floor(studsDist / 3.571428)
+
                 local shouldRender = false
                 if isDead then
-                    shouldRender = (studsDist <= 350)
+                    shouldRender = (studsDist <= 357)
                 else
-                    local isPlayerChar = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
+                    local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
                     shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
                 end
-                
-                if shouldRender then
-                    local finalColor
-                    if isDead then
-                        finalColor = COLOR_DEAD
-                        box.CanBeAimlocked = false
-                    else
-                        local visStatus, visColor = checkTargetVisibility(rootPart, char)
-                        finalColor = visColor
-                        box.CanBeAimlocked = (visStatus == "Visible")
-                    end
-    
-                    if box.Highlight then
-                        box.Highlight.Enabled = true
-                        box.Highlight.FillColor = finalColor
-                        box.Highlight.OutlineColor = finalColor
-                        if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
-                    end
-    
-                    if box.DistBillboard then
-                        if isDead or box.IsHelicopter then
-                            box.DistBillboard.Enabled = false
-                        else
-                            box.DistBillboard.Enabled = true
-                            if box.DistLabel then
-                                local distMeter = math.floor(studsDist / 3.571428)
-                                local dynamicTextSize = math.clamp(10 - math.floor(studsDist / 200), 8, 10)
-                                box.DistLabel.Text = string.format("[%d m]", distMeter)
-                                box.DistLabel.TextColor3 = finalColor
-                                box.DistLabel.TextSize = dynamicTextSize
-                            end
-                            if box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end
-                        end
-                    end
-                else
-                    box.CanBeAimlocked = false
-                    if box.Highlight then box.Highlight.Enabled = false end
-                    if box.DistBillboard then box.DistBillboard.Enabled = false end
-                end
-            elseif isItem then
-                box.CanBeAimlocked = false
-                local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then
-                    if box.Highlight then box.Highlight.Enabled = false end
-                    if box.Billboard then box.Billboard.Enabled = false end
+
+                if not shouldRender then
+                    HideVisuals()
                     continue
                 end
-    
+
+                local finalColor
+                if isDead then
+                    finalColor = COLOR_DEAD
+                    box.CanBeAimlocked = false
+                else
+                    -- [REVISI] Logika visibilitas berbasis kepala
+                    local targetPart = char:FindFirstChild("Head") or rootPart
+                    local visStatus, visColor, _ = checkTargetVisibility(targetPart, char)
+                    finalColor = visColor
+                    box.CanBeAimlocked = (visStatus == "Visible")
+                end
+
+                if box.Highlight then
+                    -- [REVISI] Highlight untuk karakter SELALU AKTIF di semua jarak
+                    box.Highlight.Enabled = true
+                    box.Highlight.FillColor = finalColor
+                    box.Highlight.OutlineColor = finalColor
+
+                    -- [REVISI] Solusi Anti-Overlapping Jarak Dekat
+                    if studsDist < 7 then
+                        box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        if box.Highlight.Adornee ~= char then
+                            box.Highlight.Adornee = char
+                        end
+                        box.Highlight.OutlineTransparency = 1
+                        box.Highlight.FillTransparency = 0.4
+                    else
+                        -- Kembalikan ke setelan normal jika jarak menjauh
+                        box.Highlight.OutlineTransparency = 0
+                        box.Highlight.FillTransparency = 0.5
+                    end
+                end
+
+                if box.DistBillboard then
+                    box.DistBillboard.Enabled = not isDead
+                    if box.DistBillboard.Enabled and box.DistLabel then
+                        box.DistLabel.Text = string.format("[%d m]", distMeter)
+                        box.DistLabel.TextColor3 = finalColor
+                    end
+                end
+            else 
+                -- BLOK KHUSUS LOOT (ITEM/KONTAINER)
+                local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
+                if not itemPos then HideVisuals(); continue end
+                
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
-    
-                if box.IsContainer then
-                    local showHighlight = inRange and box.HasLoot and (studsDist >= 4)
-                    if box.Highlight then box.Highlight.Enabled = showHighlight end
-                    if box.Billboard then box.Billboard.Enabled = false end
-                elseif box.IsLooseItem then
-                    if box.Highlight then box.Highlight.Enabled = inRange end
-                    if box.Billboard then box.Billboard.Enabled = inRange end
+                
+                if box.Highlight_Item then 
+                    box.Highlight_Item.Enabled = inRange and (not box.IsContainer or box.HasLoot)
                 end
+                -- [REVISI] Logika jarak dekat HANYA untuk loot
+                if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
+                    box.Highlight_Item.Enabled = false
+                end
+                if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
             end
         end
 
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
-            -- Validasi target saat ini: Harus ada, hidup, dan masih valid untuk aimlock (Visible)
-            -- [FIX] Memastikan Aimlock akan langsung lepas dan mencari target baru jika musuh bersembunyi di balik tembok
-            if CurrentTargetEntity and CurrentTargetChar and ESP_Objects[CurrentTargetEntity] then
-                if not ESP_Objects[CurrentTargetEntity].CanBeAimlocked or IsEntityDead(CurrentTargetChar) then
-                    CurrentTargetEntity = nil; CurrentTargetChar = nil
-                end
-            else
-                CurrentTargetEntity = nil; CurrentTargetChar = nil
-            end
-            
-            if not CurrentTargetChar then
-                CurrentTargetEntity, CurrentTargetChar = GetBestTargetInFOV()
-            end
-            
-            if CurrentTargetChar then
-                local tHead = CurrentTargetChar:FindFirstChild("Head") or CurrentTargetChar:FindFirstChild("HumanoidRootPart") or CurrentTargetChar:FindFirstChildWhichIsA("BasePart", true)
+            local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
+            if potentialTargetChar then
+                local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
                 if tHead then
-                    local studsDist = (cameraPos - tHead.Position).Magnitude
-                    local bulletSpeed = GetBulletSpeed()
-                    if bulletSpeed <= 0 then bulletSpeed = 1500 end
-                    
-                    local t = studsDist / bulletSpeed
-                    local currentVelocity = tHead.AssemblyLinearVelocity
-                    if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
-                    
-                    local futurePos = tHead.Position + (currentVelocity * t)
-                    
-                    -- If Gun Mods are on, bullet drop is zero.
-                    local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * t * t) / 2
-                    local finalAimPos = futurePos + Vector3.new(0, dropCompensation, 0)
-                    
-                    local screenPosAim, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
-                    if onScreenAim then
-                        local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, finalAimPos)
-                        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.6)
+                    local visStatus, _ = checkTargetVisibility(tHead, potentialTargetChar)
+                    if visStatus == "Visible" and not IsEntityDead(potentialTargetChar) then
+                        CurrentTargetEntity = potentialTargetEntity; CurrentTargetChar = potentialTargetChar
+                        local studsDist = (cameraPos - tHead.Position).Magnitude
+                        
+                        -- [KALIBRASI]
+                        local bulletSpeed = GetBulletSpeed()
+                        if bulletSpeed <= 0 then bulletSpeed = 1500 end
+                        local timeToTarget = studsDist / bulletSpeed
+                        local currentVelocity = tHead.AssemblyLinearVelocity
+                        if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
+                        
+                        local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * timeToTarget * timeToTarget) / 2
+                        local finalAimPos = tHead.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
+                        
+                        local _, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
+                        if onScreenAim then
+                            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
+                        end
+                    else
+                        CurrentTargetEntity = nil; CurrentTargetChar = nil
                     end
                 else
                     CurrentTargetEntity = nil; CurrentTargetChar = nil
@@ -1220,14 +1110,10 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
 
     --[[
         ================================================
-        --        MODUL 10: INITIAL CONNECTIONS         --
+        --       MODULE 10: INITIAL CONNECTIONS & MEMORY PURGE      --
         ================================================
-        -- Kegunaan:
-        -- Menjalankan pemindaian awal dan menyiapkan koneksi event
-        -- untuk mendeteksi pemain yang baru masuk atau keluar dari game,
-        -- serta memastikan skrip berhenti dengan bersih.
     ]]
-    -- // Initial Player Scan
+
     for _, p in ipairs(Players:GetPlayers()) do 
         if p ~= LocalPlayer then CreateESP(p, true) end
     end
@@ -1236,21 +1122,19 @@ local VisCheckBtn = CreateToggle("ESP Wall Check", "VisCheck")
         if p ~= LocalPlayer then CreateESP(p, true) end
     end)
 
-    -- // Memory Purge Extension
     local function PurgeAllGarbageMemory()
+        RunService:UnbindFromRenderStep("RomeoZach_Render")
         for entity, box in pairs(ESP_Objects) do
-            pcall(function()
-                if box.Highlight then box.Highlight:Destroy() end
-                if box.Billboard then box.Billboard:Destroy() end
-                if box.DistBillboard then box.DistBillboard:Destroy() end
-                if box.Connection then box.Connection:Disconnect() end
-            end)
+            RemoveESP(entity)
         end
         table.clear(ESP_Objects)
         table.clear(ignoreList)
         table.clear(CrosshairLines)
         CurrentTargetEntity = nil
         CurrentTargetChar = nil
+        if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
+            pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
+        end
         setmetatable(ESP_Objects, nil)
         collectgarbage("collect")
     end

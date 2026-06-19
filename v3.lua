@@ -1,9 +1,9 @@
 --[[
 ================================================================================
 --|                                                                            |--
---|    PROJECT DELTA V4 - HYBRID ENGINE (GEMINI x REFERENCE.LUA)                 |--
+--|    PROJECT DELTA V5 - FINAL (RESTORED VISUALS & STABLE ENGINE)               |--
 --|                             Original Author : RomeoZach                      |--
---|                        ESP Engine Rebuilt by Gemini Code Assist              |--
+--|                        Hybrid Engine by Gemini Code Assist                   |--
 --|                                                                            |--
 ================================================================================
 ]]
@@ -146,7 +146,7 @@ pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V4 - Hybrid"
+    Header.Text = "Project Delta V5 - Final"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -382,43 +382,17 @@ pcall(function()
 
     --[[
         ================================================
-        --      MODULE 4: ESP MANAGER (HYBRID ENGINE)     --
+        --      MODULE 4: ESP MANAGER (RESTORED VISUALS)     --
         ================================================
     ]]
-    -- // ESP Creation & Management using Drawing Library
-    local function CreateDrawingObjectsForEntity()
-        local drawings = {
-            Box = Drawing.new("Square"),
-            BoxOutline = Drawing.new("Square"),
-            Distance = Drawing.new("Text")
-        }
-        -- Configure default properties
-        drawings.Box.Thickness = 1
-        drawings.Box.Filled = false
-        drawings.BoxOutline.Thickness = 2
-        drawings.BoxOutline.Filled = false
-        drawings.BoxOutline.Color = Color3.new(0,0,0) -- Black outline
-        drawings.Distance.Size = 13
-        drawings.Distance.Center = true
-        drawings.Distance.Outline = true
-        
-        -- Set all to invisible initially
-        for _, d in pairs(drawings) do
-            d.Visible = false
-        end
-        return drawings
-    end
-
+    -- // ESP Creation & Management using Highlight & BillboardGui
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
-            if box.Drawings then
-                for _, drawing in pairs(box.Drawings) do
-                    drawing:Remove()
-                end
-            end
-            if box.Highlight then box.Highlight:Destroy() end -- For items
-            if box.Billboard then box.Billboard:Destroy() end -- For items
+            if box.Highlight then box.Highlight:Destroy() end
+            if box.DistBillboard then box.DistBillboard:Destroy() end
+            if box.Highlight_Item then box.Highlight_Item:Destroy() end
+            if box.Billboard_Item then box.Billboard_Item:Destroy() end
             if box.Connection then box.Connection:Disconnect() end
             ESP_Objects[entity] = nil
         end
@@ -429,22 +403,57 @@ pcall(function()
         if ESP_Objects[entity] then return end
 
         local box = {
-            Drawings = CreateDrawingObjectsForEntity(),
+            Highlight = nil,
+            DistBillboard = nil,
+            DistLabel = nil,
             Connection = nil,
             CanBeAimlocked = false,
             IsHelicopter = false,
         }
         
-        local function ApplyCharacter(char)
+        local function ApplyVisuals(char)
             if not char then return end
+
+            if box.Highlight then box.Highlight:Destroy() end
+            if box.DistBillboard then box.DistBillboard:Destroy() end
+
             box.Character = char
+            
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+            local initialVisStatus, initialVisColor = "Blocked", COLOR_BLOCKED
+            if rootPart then
+                initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
+            end
+
+            local hl = Instance.new("Highlight", char)
+            hl.FillColor = initialVisColor
+            hl.OutlineColor = initialVisColor
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            box.Highlight = hl
+            
+            local distBb = Instance.new("BillboardGui", char)
+            distBb.Name = "RomeoZach_DistBillboard"
+            distBb.Size = UDim2.new(0, 200, 0, 50)
+            distBb.AlwaysOnTop = true
+            distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LeftFoot")
+            distBb.StudsOffset = Vector3.new(0, -4.5, 0)
+            box.DistBillboard = distBb
+            
+            local distTxt = Instance.new("TextLabel", distBb)
+            distTxt.Size = UDim2.new(1, 0, 1, 0); distTxt.BackgroundTransparency = 1
+            distTxt.Text = ""; distTxt.TextColor3 = initialVisColor; distTxt.TextSize = 13; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0
+            distTxt.TextYAlignment = Enum.TextYAlignment.Top
+            Instance.new("UIStroke", distTxt).Thickness = 1.5
+            box.DistLabel = distTxt
         end
         
         if isPlayer then 
-            if entity.Character then ApplyCharacter(entity.Character) end
-            box.Connection = entity.CharacterAdded:Connect(ApplyCharacter) 
+            if entity.Character then ApplyVisuals(entity.Character) end
+            box.Connection = entity.CharacterAdded:Connect(ApplyVisuals) 
         else 
-            ApplyCharacter(entity) 
+            ApplyVisuals(entity) 
         end
         ESP_Objects[entity] = box
     end
@@ -735,7 +744,7 @@ pcall(function()
                                 
                                 bb.Enabled = false; hl.Enabled = false
                                 
-                                ESP_Objects[obj] = {Billboard = bb, Highlight = hl, IsContainer = true, HasLoot = hasLoot, TargetAdornee = adorneePart}
+                                ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, IsContainer = true, HasLoot = hasLoot, TargetAdornee = adorneePart}
                             end
                         else
                             ESP_Objects[obj].HasLoot = hasLoot
@@ -783,7 +792,7 @@ pcall(function()
                             hl.FillTransparency = 0.7; hl.OutlineTransparency = 0.5; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                             hl.Adornee = adorneePart; hl.Parent = adorneePart
                             
-                            ESP_Objects[obj] = {Billboard = bb, Highlight = hl, TargetAdornee = adorneePart, IsLooseItem = true, ItemName = matchName}
+                            ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, TargetAdornee = adorneePart, IsLooseItem = true, ItemName = matchName}
                         end
                     end
                 end
@@ -934,19 +943,16 @@ pcall(function()
             
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
-            local function HideDrawings()
+            local function HideVisuals()
                 box.CanBeAimlocked = false
-                if box.Drawings then
-                    for _, d in pairs(box.Drawings) do
-                        d.Visible = false
-                    end
-                end
                 if box.Highlight then box.Highlight.Enabled = false end
-                if box.Billboard then box.Billboard.Enabled = false end
+                if box.DistBillboard then box.DistBillboard.Enabled = false end
+                if box.Highlight_Item then box.Highlight_Item.Enabled = false end
+                if box.Billboard_Item then box.Billboard_Item.Enabled = false end
             end
 
             if not char or not char.Parent or char == lpChar then
-                HideDrawings()
+                HideVisuals()
                 continue
             end
 
@@ -957,7 +963,7 @@ pcall(function()
             local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (box.IsContainer and ESP_Config.ESP_Containers) or (box.IsLooseItem and ESP_Config.ESP_Loot)
 
             if not shouldProcess then
-                HideDrawings()
+                HideVisuals()
                 continue
             end
 
@@ -966,18 +972,11 @@ pcall(function()
                 if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
 
                 if not rootPart then
-                    HideDrawings()
+                    HideVisuals()
                     continue
                 end
 
                 local rootPos = rootPart.Position
-                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
-
-                if not onScreen then
-                    HideDrawings()
-                    continue
-                end
-
                 local studsDist = (cameraPos - rootPos).Magnitude
                 local distMeter = math.floor(studsDist / 3.571428)
 
@@ -990,29 +989,9 @@ pcall(function()
                 end
 
                 if not shouldRender then
-                    HideDrawings()
+                    HideVisuals()
                     continue
                 end
-
-                local headPart = char:FindFirstChild("Head")
-                local footPart = char:FindFirstChild("HumanoidRootPart")
-                if not headPart or not footPart then
-                    HideDrawings()
-                    continue
-                end
-
-                local headScreen, onScreenHead = Camera:WorldToViewportPoint(headPart.Position)
-                local footScreen, onScreenFoot = Camera:WorldToViewportPoint(footPart.Position - Vector3.new(0, 3, 0))
-
-                if not (onScreenHead and onScreenFoot) then
-                    HideDrawings()
-                    continue
-                end
-
-                local height = math.abs(headScreen.Y - footScreen.Y)
-                local width = height / 1.8
-                local boxPos = Vector2.new(headScreen.X - width / 2, headScreen.Y)
-                local boxSize = Vector2.new(width, height)
 
                 local finalColor
                 if isDead then
@@ -1024,32 +1003,28 @@ pcall(function()
                     box.CanBeAimlocked = (visStatus == "Visible")
                 end
 
-                box.Drawings.Box.Visible = true
-                box.Drawings.Box.Color = finalColor
-                box.Drawings.Box.Position = boxPos
-                box.Drawings.Box.Size = boxSize
-                
-                box.Drawings.BoxOutline.Visible = true
-                box.Drawings.BoxOutline.Position = boxPos
-                box.Drawings.BoxOutline.Size = boxSize
+                if box.Highlight then
+                    box.Highlight.Enabled = true
+                    box.Highlight.FillColor = finalColor
+                    box.Highlight.OutlineColor = finalColor
+                end
 
-                if not isDead then
-                    box.Drawings.Distance.Visible = true
-                    box.Drawings.Distance.Color = finalColor
-                    box.Drawings.Distance.Text = string.format("[%d m]", distMeter)
-                    box.Drawings.Distance.Position = Vector2.new(boxPos.X + boxSize.X / 2, boxPos.Y + boxSize.Y + 5)
-                else
-                    box.Drawings.Distance.Visible = false
+                if box.DistBillboard then
+                    box.DistBillboard.Enabled = not isDead
+                    if box.DistBillboard.Enabled and box.DistLabel then
+                        box.DistLabel.Text = string.format("[%d m]", distMeter)
+                        box.DistLabel.TextColor3 = finalColor
+                    end
                 end
             else -- This is for items
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then HideDrawings(); continue end
+                if not itemPos then HideVisuals(); continue end
                 
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
                 
-                if box.Highlight then box.Highlight.Enabled = inRange and (not box.IsContainer or (box.HasLoot and studsDist >= 4)) end
-                if box.Billboard then box.Billboard.Enabled = inRange and box.IsLooseItem end
+                if box.Highlight_Item then box.Highlight_Item.Enabled = inRange and (not box.IsContainer or (box.HasLoot and studsDist >= 4)) end
+                if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
             end
         end
 

@@ -296,13 +296,19 @@ pcall(function()
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
 
-        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color end
-        local lpChar = LocalPlayer.Character
-        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED end
-        
         local origin = Camera.CFrame.Position
         local targetPos = targetPart.Position
         local direction = targetPos - origin
+        
+        -- [FIX DEFINITIF] Jika jarak sangat dekat (di dalam jangkauan melee), anggap target selalu terlihat.
+        -- Ini mencegah bug raycast pada jarak nol yang menyebabkan ESP hilang dan Aimlock mati.
+        if direction.Magnitude < 5 then
+            return "Visible", ESP_Config.Color
+        end
+
+        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color end
+        local lpChar = LocalPlayer.Character
+        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED end
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
@@ -405,8 +411,16 @@ pcall(function()
 
             box.TargetAdornee = char
             
+            -- [FIX] Lakukan pengecekan visibilitas awal saat ESP dibuat untuk warna yang akurat sejak frame pertama.
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+            local initialVisStatus, initialVisColor = "Blocked", COLOR_BLOCKED
+            if rootPart then
+                initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
+            end
+            
             local hl = char:FindFirstChildOfClass("Highlight") or Instance.new("Highlight", char)
-            hl.FillColor = COLOR_VISIBLE; hl.FillTransparency = 0.5; hl.OutlineColor = COLOR_VISIBLE; hl.OutlineTransparency = 0; hl.Adornee = char; box.Highlight = hl
+            -- Gunakan warna awal yang sudah dicek, bukan warna default.
+            hl.FillColor = initialVisColor; hl.FillTransparency = 0.5; hl.OutlineColor = initialVisColor; hl.OutlineTransparency = 0; hl.Adornee = char; box.Highlight = hl
             hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 
             -- Distance Billboard
@@ -418,7 +432,8 @@ pcall(function()
             
             local distTxt = Instance.new("TextLabel", distBb)
             distTxt.Size = UDim2.new(1, 0, 1, 0); distTxt.BackgroundTransparency = 1;
-            distTxt.Text = ""; distTxt.TextColor3 = COLOR_VISIBLE; distTxt.TextSize = 10; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0; box.DistLabel = distTxt
+            -- Gunakan juga warna awal untuk teks jarak.
+            distTxt.Text = ""; distTxt.TextColor3 = initialVisColor; distTxt.TextSize = 10; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0; box.DistLabel = distTxt
             distTxt.TextYAlignment = Enum.TextYAlignment.Top
             Instance.new("UIStroke", distTxt).Thickness = 1.5
         end

@@ -1,4 +1,4 @@
--- LogService interceptor dibiarkan sebagai referensi, namun tidak akan memblokir error server dari console.
+-- LogService interceptor dibiarkan sebagai referensi
 local LogService = game:GetService("LogService")
 LogService.MessageOut:Connect(function(message, messageType)
     if message:find("TimeLabel") or message:find("GameplayVariables") or message:find("TargetAttachment") then
@@ -82,7 +82,6 @@ local success, err = pcall(function()
         Ambient = Lighting.Ambient,
         OutdoorAmbient = Lighting.OutdoorAmbient,
         Brightness = Lighting.Brightness,
-        Decoration = workspace.Terrain.Decoration,
         FogColor = Lighting.FogColor
     }
     local DisabledEffects = {}
@@ -90,9 +89,12 @@ local success, err = pcall(function()
 
     -- // Game-Specific Data
     local WallbangableMaterials = {
-        [Enum.Material.Wood] = true, [Enum.Material.WoodPlanks] = true,
-        [Enum.Material.Fabric] = true, [Enum.Material.Plastic] = true,
-        [Enum.Material.Glass] = true, [Enum.Material.Cardboard] = true,
+        [Enum.Material.Wood] = true,
+        [Enum.Material.WoodPlanks] = true,
+        [Enum.Material.Fabric] = true,
+        [Enum.Material.Plastic] = true,
+        [Enum.Material.Glass] = true,
+        [Enum.Material.Cardboard] = true,
         [Enum.Material.Sand] = true
     }
 
@@ -102,12 +104,14 @@ local success, err = pcall(function()
     sharedRaycastParams.IgnoreWater = true
     local ignoreList = {}
 
-    -- // UI Framework (Rebuilt - Menggunakan targetGui agar aman dari anti-cheat)
+    -- // UI Framework
     local targetGui = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui", 15)
     
     local oldUi = targetGui:FindFirstChild("RomeoZach_Ui")
     if oldUi then
-        pcall(function() oldUi:Destroy() end)
+        pcall(function()
+            oldUi:Destroy()
+        end)
         task.wait(0.2)
     end
 
@@ -217,7 +221,9 @@ local success, err = pcall(function()
                 Position = isActive and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
             }):Play()
 
-            if configKey == "AimLock" and not ESP_Config.AimLock then CurrentTargetChar = nil end
+            if configKey == "AimLock" and not ESP_Config.AimLock then
+                CurrentTargetChar = nil
+            end
             
             if configKey == "Crosshair" then
                 for _, line in ipairs(CrosshairLines) do
@@ -250,11 +256,15 @@ local success, err = pcall(function()
         if input.KeyCode == Enum.KeyCode.RightShift and not gp then
             MainFrame.Visible = not MainFrame.Visible
         end
-        if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = true end
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            IsAiming = true
+        end
     end)
 
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = false end
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            IsAiming = false
+        end
     end)
 
     -- // Utility Functions
@@ -351,7 +361,8 @@ local success, err = pcall(function()
     end
 
     local function GetBestTargetInFOV()
-        local bestEntity, bestChar = nil, nil
+        local bestEntity = nil
+        local bestChar = nil
         local shortestPixelDist = 300
         local centerPos = Camera.ViewportSize / 2
         local origin = Camera.CFrame.Position
@@ -363,7 +374,7 @@ local success, err = pcall(function()
                 if head and not IsEntityDead(char) then
                     local visStatus, _, _ = checkTargetVisibility(head, char)
                     if visStatus ~= "Visible" then
-                        continue -- Lewati jika target tidak terlihat agar aimlock tidak nyangkut
+                        continue
                     end
 
                     local studsDist = (origin - head.Position).Magnitude
@@ -383,7 +394,9 @@ local success, err = pcall(function()
                     if onScreen then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
                         if screenDist < shortestPixelDist then
-                            shortestPixelDist = screenDist; bestEntity = entity; bestChar = char
+                            shortestPixelDist = screenDist
+                            bestEntity = entity
+                            bestChar = char
                         end
                     end
                 end
@@ -419,7 +432,7 @@ local success, err = pcall(function()
             DistLabel = nil,
             Connection = nil,
             CanBeAimlocked = false,
-            IsHelicopter = false,
+            IsHelicopter = false
         }
         
         local function ApplyVisuals(char)
@@ -436,7 +449,8 @@ local success, err = pcall(function()
             box.Character = char
             
             local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
-            local initialVisStatus, initialVisColor = "Blocked", COLOR_BLOCKED
+            local initialVisStatus = "Blocked"
+            local initialVisColor = COLOR_BLOCKED
             if rootPart then
                 initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
             end
@@ -458,8 +472,13 @@ local success, err = pcall(function()
             box.DistBillboard = distBb
             
             local distTxt = Instance.new("TextLabel", distBb)
-            distTxt.Size = UDim2.new(1, 0, 1, 0); distTxt.BackgroundTransparency = 1
-            distTxt.Text = ""; distTxt.TextColor3 = initialVisColor; distTxt.TextSize = 13; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0
+            distTxt.Size = UDim2.new(1, 0, 1, 0)
+            distTxt.BackgroundTransparency = 1
+            distTxt.Text = ""
+            distTxt.TextColor3 = initialVisColor
+            distTxt.TextSize = 13
+            distTxt.Font = ESP_Config.Font
+            distTxt.TextStrokeTransparency = 0
             distTxt.TextYAlignment = Enum.TextYAlignment.Top
             Instance.new("UIStroke", distTxt).Thickness = 1.5
             box.DistLabel = distTxt
@@ -601,7 +620,10 @@ local success, err = pcall(function()
             if isEntityScanning then continue end
             isEntityScanning = true
             local lpChar = LocalPlayer.Character
-            if not lpChar then isEntityScanning = false; continue end
+            if not lpChar then
+                isEntityScanning = false
+                continue
+            end
 
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and not ESP_Objects[p] then CreateESP(p, true) end
@@ -689,7 +711,10 @@ local success, err = pcall(function()
         while task.wait(2) do
             if isItemScanning then continue end
             isItemScanning = true
-            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; continue end
+            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then
+                isItemScanning = false
+                continue
+            end
 
             local containersFolder = workspace:FindFirstChild("Containers")
             if containersFolder and ESP_Config.ESP_Containers then
@@ -703,7 +728,8 @@ local success, err = pcall(function()
                     
                     for _, c in ipairs(containerKeywords) do
                         if nameLower:find(c) and not nameLower:find("skybox") and not nameLower:find("hitbox") and not nameLower:find("bhitbox") then
-                            isContainer = true; break
+                            isContainer = true
+                            break
                         end
                     end
 
@@ -716,20 +742,33 @@ local success, err = pcall(function()
                             local adorneePart = (obj:IsA("BasePart") and obj) or obj:FindFirstChildWhichIsA("BasePart", true)
                             if adorneePart then
                                 local bb = Instance.new("BillboardGui")
-                                bb.Size = UDim2.new(0, 250, 0, 30); bb.AlwaysOnTop = true
-                                bb.Adornee = adorneePart; bb.Parent = adorneePart
+                                bb.Size = UDim2.new(0, 250, 0, 30)
+                                bb.AlwaysOnTop = true
+                                bb.Adornee = adorneePart
+                                bb.Parent = adorneePart
+                                
                                 local txt = Instance.new("TextLabel", bb)
-                                txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.Text = ""
-                                txt.TextColor3 = Color3.fromRGB(255, 215, 0); txt.TextStrokeTransparency = 0; txt.Font = ESP_Config.Font; txt.TextSize = 13
+                                txt.Size = UDim2.new(1,0,1,0)
+                                txt.BackgroundTransparency = 1
+                                txt.Text = ""
+                                txt.TextColor3 = Color3.fromRGB(255, 215, 0)
+                                txt.TextStrokeTransparency = 0
+                                txt.Font = ESP_Config.Font
+                                txt.TextSize = 13
                                 Instance.new("UIStroke", txt).Thickness = 2
                                 
                                 local hl = Instance.new("Highlight")
                                 hl.Name = "LootHighlight"
-                                hl.FillColor = Color3.fromRGB(212, 175, 55); hl.OutlineColor = Color3.fromRGB(212, 175, 55)
-                                hl.FillTransparency = 0.7; hl.OutlineTransparency = 0.5; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                                hl.Adornee = adorneePart; hl.Parent = adorneePart
+                                hl.FillColor = Color3.fromRGB(212, 175, 55)
+                                hl.OutlineColor = Color3.fromRGB(212, 175, 55)
+                                hl.FillTransparency = 0.7
+                                hl.OutlineTransparency = 0.5
+                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                                hl.Adornee = adorneePart
+                                hl.Parent = adorneePart
                                 
-                                bb.Enabled = false; hl.Enabled = false
+                                bb.Enabled = false
+                                hl.Enabled = false
                                 
                                 ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, IsContainer = true, HasLoot = hasLoot, TargetAdornee = adorneePart}
                             end
@@ -763,21 +802,30 @@ local success, err = pcall(function()
                         if isMatch then
                             local adorneePart = (obj:IsA("BasePart") and obj) or obj:FindFirstChildWhichIsA("BasePart", true) or obj
                             local bb = Instance.new("BillboardGui")
-                            bb.Size = UDim2.new(0, 250, 0, 30); bb.AlwaysOnTop = true
-                            bb.Adornee = adorneePart; bb.Parent = adorneePart
+                            bb.Size = UDim2.new(0, 250, 0, 30)
+                            bb.AlwaysOnTop = true
+                            bb.Adornee = adorneePart
+                            bb.Parent = adorneePart
                             
                             local txt = Instance.new("TextLabel", bb)
-                            txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1
+                            txt.Size = UDim2.new(1,0,1,0)
+                            txt.BackgroundTransparency = 1
                             txt.Text = "[ " .. matchName .. " ]"
                             txt.TextColor3 = Color3.fromRGB(255, 215, 0)
-                            txt.TextStrokeTransparency = 0; txt.Font = ESP_Config.Font; txt.TextSize = 13
+                            txt.TextStrokeTransparency = 0
+                            txt.Font = ESP_Config.Font
+                            txt.TextSize = 13
                             Instance.new("UIStroke", txt).Thickness = 2
                             
                             local hl = Instance.new("Highlight")
                             hl.Name = "LootHighlight"
-                            hl.FillColor = Color3.fromRGB(212, 175, 55); hl.OutlineColor = Color3.fromRGB(212, 175, 55)
-                            hl.FillTransparency = 0.7; hl.OutlineTransparency = 0.5; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                            hl.Adornee = adorneePart; hl.Parent = adorneePart
+                            hl.FillColor = Color3.fromRGB(212, 175, 55)
+                            hl.OutlineColor = Color3.fromRGB(212, 175, 55)
+                            hl.FillTransparency = 0.7
+                            hl.OutlineTransparency = 0.5
+                            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                            hl.Adornee = adorneePart
+                            hl.Parent = adorneePart
                             
                             ESP_Objects[obj] = {Billboard_Item = bb, Highlight_Item = hl, TargetAdornee = adorneePart, IsLooseItem = true, ItemName = matchName}
                         end
@@ -803,25 +851,28 @@ local success, err = pcall(function()
         
         for _, obj in ipairs(Lighting:GetDescendants()) do
             pcall(function()
-                if obj:IsA("Atmosphere") then obj.Density = 0 elseif obj:IsA("Clouds") then obj.Enabled = false end
+                if obj:IsA("Atmosphere") then
+                    obj.Density = 0
+                elseif obj:IsA("Clouds") then
+                    obj.Enabled = false
+                end
             end)
         end
 
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj.Name:lower():find("rain") then
                 if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
-                    pcall(function() obj.Enabled = false end)
+                    pcall(function()
+                        obj.Enabled = false
+                    end)
                 elseif obj:IsA("Sound") then
-                    pcall(function() obj.Volume = 0 end)
+                    pcall(function()
+                        obj.Volume = 0
+                        obj:Stop()
+                    end)
                 end
             end
         end
-
-        pcall(function()
-            -- workspace.Terrain.Decoration = false
-            workspace.Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(50, 50, 50)) 
-            LightingBackups.Decoration = false
-        end)
     end
 
     InitialPerformanceBoost()
@@ -832,13 +883,27 @@ local success, err = pcall(function()
             if ammoTypes then
                 for _, ammo in pairs(ammoTypes:GetChildren()) do
                     if ESP_Config.GunMods then
-                        if not AmmoBackups[ammo] then AmmoBackups[ammo] = {Recoil = ammo:GetAttribute("RecoilStrength"), Spread = ammo:GetAttribute("AccuracyDeviation"), Drop = ammo:GetAttribute("ProjectileDrop")} end
-                        ammo:SetAttribute("RecoilStrength", 0); ammo:SetAttribute("AccuracyDeviation", 0); ammo:SetAttribute("ProjectileDrop", 0)
+                        if not AmmoBackups[ammo] then
+                            AmmoBackups[ammo] = {
+                                Recoil = ammo:GetAttribute("RecoilStrength"),
+                                Spread = ammo:GetAttribute("AccuracyDeviation"),
+                                Drop = ammo:GetAttribute("ProjectileDrop")
+                            }
+                        end
+                        ammo:SetAttribute("RecoilStrength", 0)
+                        ammo:SetAttribute("AccuracyDeviation", 0)
+                        ammo:SetAttribute("ProjectileDrop", 0)
                     else
                         if AmmoBackups[ammo] then
-                            if AmmoBackups[ammo].Recoil ~= nil then ammo:SetAttribute("RecoilStrength", AmmoBackups[ammo].Recoil) end
-                            if AmmoBackups[ammo].Spread ~= nil then ammo:SetAttribute("AccuracyDeviation", AmmoBackups[ammo].Spread) end
-                            if AmmoBackups[ammo].Drop ~= nil then ammo:SetAttribute("ProjectileDrop", AmmoBackups[ammo].Drop) end
+                            if AmmoBackups[ammo].Recoil ~= nil then
+                                ammo:SetAttribute("RecoilStrength", AmmoBackups[ammo].Recoil)
+                            end
+                            if AmmoBackups[ammo].Spread ~= nil then
+                                ammo:SetAttribute("AccuracyDeviation", AmmoBackups[ammo].Spread)
+                            end
+                            if AmmoBackups[ammo].Drop ~= nil then
+                                ammo:SetAttribute("ProjectileDrop", AmmoBackups[ammo].Drop)
+                            end
                             AmmoBackups[ammo] = nil
                         end
                     end
@@ -852,27 +917,39 @@ local success, err = pcall(function()
                 if ESP_Config.PerformanceMode then
                     for _, obj in pairs(Lighting:GetDescendants()) do
                         if obj:IsA("PostEffect") or obj:IsA("Clouds") then
-                            if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
+                            if obj.Enabled then
+                                DisabledEffects[obj] = true
+                                obj.Enabled = false
+                            end
                         elseif obj:IsA("Atmosphere") then
-                            if not TextureBackups[obj] then TextureBackups[obj] = {Density = obj.Density} end
+                            if not TextureBackups[obj] then
+                                TextureBackups[obj] = {Density = obj.Density}
+                            end
                             obj.Density = 0
                         end
                     end
                 else
                     Lighting.FogEnd = LightingBackups.FogEnd
                     Lighting.FogStart = LightingBackups.FogStart
-                    -- workspace.Terrain.Decoration = LightingBackups.Decoration
                     
                     for obj, _ in pairs(DisabledEffects) do
-                        if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
+                        if obj and obj.Parent then
+                            pcall(function()
+                                obj.Enabled = true
+                            end)
+                        end
                     end
                     table.clear(DisabledEffects)
                 end
             end
             
             if ESP_Config.PerformanceMode then
-                Lighting.GlobalShadows = false; Lighting.FogEnd = 999999; Lighting.FogStart = 0; Lighting.Brightness = 2.0
-                Lighting.Ambient = Color3.fromRGB(85, 85, 95); Lighting.OutdoorAmbient = Color3.fromRGB(85, 85, 95)
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 999999
+                Lighting.FogStart = 999999
+                Lighting.Brightness = 2.5
+                Lighting.Ambient = Color3.fromRGB(140, 145, 155)
+                Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
             end
         end
     end)
@@ -889,7 +966,6 @@ local success, err = pcall(function()
         local cameraPos = Camera.CFrame.Position
 
         for entity, box in pairs(ESP_Objects) do
-            -- [PERBAIKAN] Tambahkan continue untuk melompati iterasi yang sudah mati
             if typeof(entity) == "Instance" and not entity.Parent then
                 RemoveESP(entity)
                 continue
@@ -923,7 +999,9 @@ local success, err = pcall(function()
 
             if not isItem then
                 local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-                if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
+                if isDead and not rootPart then
+                    rootPart = char:FindFirstChildWhichIsA("BasePart", true)
+                end
 
                 if not rootPart then
                     HideVisuals()
@@ -965,7 +1043,9 @@ local success, err = pcall(function()
 
                     if studsDist < 7 then
                         box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        if box.Highlight.Adornee ~= char then box.Highlight.Adornee = char end
+                        if box.Highlight.Adornee ~= char then
+                            box.Highlight.Adornee = char
+                        end
                         box.Highlight.OutlineTransparency = 1
                         box.Highlight.FillTransparency = 0.4
                     else
@@ -983,7 +1063,10 @@ local success, err = pcall(function()
                 end
             else 
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then HideVisuals(); continue end
+                if not itemPos then
+                    HideVisuals()
+                    continue
+                end
                 
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
@@ -994,7 +1077,9 @@ local success, err = pcall(function()
                 if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
                     box.Highlight_Item.Enabled = false
                 end
-                if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
+                if box.Billboard_Item then
+                    box.Billboard_Item.Enabled = inRange and box.IsLooseItem
+                end
             end
         end 
 
@@ -1006,7 +1091,8 @@ local success, err = pcall(function()
                 if tHead then
                     local visStatus, _ = checkTargetVisibility(tHead, potentialTargetChar)
                     if visStatus == "Visible" and not IsEntityDead(potentialTargetChar) then
-                        CurrentTargetEntity = potentialTargetEntity; CurrentTargetChar = potentialTargetChar
+                        CurrentTargetEntity = potentialTargetEntity
+                        CurrentTargetChar = potentialTargetChar
                         local studsDist = (cameraPos - tHead.Position).Magnitude
                         
                         local bulletSpeed = GetBulletSpeed()
@@ -1023,14 +1109,17 @@ local success, err = pcall(function()
                             Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
                         end
                     else
-                        CurrentTargetEntity = nil; CurrentTargetChar = nil
+                        CurrentTargetEntity = nil
+                        CurrentTargetChar = nil
                     end
                 else
-                    CurrentTargetEntity = nil; CurrentTargetChar = nil
+                    CurrentTargetEntity = nil
+                    CurrentTargetChar = nil
                 end
             end
         else
-            CurrentTargetEntity = nil; CurrentTargetChar = nil
+            CurrentTargetEntity = nil
+            CurrentTargetChar = nil
         end
     end)
 
@@ -1050,14 +1139,18 @@ local success, err = pcall(function()
 
     local function PurgeAllGarbageMemory()
         RunService:UnbindFromRenderStep("RomeoZach_Render")
-        for entity, box in pairs(ESP_Objects) do RemoveESP(entity) end
+        for entity, box in pairs(ESP_Objects) do
+            RemoveESP(entity)
+        end
         table.clear(ESP_Objects)
         table.clear(ignoreList)
         table.clear(CrosshairLines)
         CurrentTargetEntity = nil
         CurrentTargetChar = nil
         if targetGui:FindFirstChild("RomeoZach_Ui") then 
-            pcall(function() targetGui.RomeoZach_Ui:Destroy() end)
+            pcall(function()
+                targetGui.RomeoZach_Ui:Destroy()
+            end)
         end
         setmetatable(ESP_Objects, nil)
         collectgarbage("collect")
@@ -1068,7 +1161,6 @@ local success, err = pcall(function()
 
 end)
 
--- [PERBAIKAN] Menangkap pesan error jika ekseskusi pcall gagal
 if not success then
     warn("[Project Delta V8 Error]: " .. tostring(err))
 end

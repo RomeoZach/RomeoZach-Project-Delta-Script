@@ -1,10 +1,9 @@
 --[[
 ================================================================================
---|                                                                            |--
---|    PROJECT DELTA V5 - FINAL (RESTORED VISUALS & STABLE ENGINE)               |--
---|                             Original Author : RomeoZach                      |--
---|                        Hybrid Engine by Gemini Code Assist                   |--
---|                                                                            |--
+--|                                                                          |--
+--|    PROJECT DELTA V5 - FINAL (RESTORED VISUALS & STABLE ENGINE)           |--
+--|                             Original Author : RomeoZach                  |--
+--|                                                                          |--
 ================================================================================
 ]]
 
@@ -31,7 +30,7 @@ pcall(function()
     -- // Master Configuration State
     local ESP_Config = {
         AimLock = false,
-        ESP_Players = false,
+        ESP_Players = true,
         ESP_Corpses = false,
         ESP_Loot = false,
         ESP_Containers = false,
@@ -70,11 +69,13 @@ pcall(function()
     local TextureBackups = {}
     local LightingBackups = {
         GlobalShadows = Lighting.GlobalShadows,
-        FogStart = Lighting.FogStart,
         FogEnd = Lighting.FogEnd,
+        FogStart = Lighting.FogStart,
         Ambient = Lighting.Ambient,
         OutdoorAmbient = Lighting.OutdoorAmbient,
-        Brightness = Lighting.Brightness
+        Brightness = Lighting.Brightness,
+        Decoration = workspace.Terrain.Decoration,
+        FogColor = Lighting.FogColor
     }
     local DisabledEffects = {}
     local LastPerformanceState = false
@@ -129,7 +130,7 @@ pcall(function()
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 480, 0, 260) 
-    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -130)
+    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
     MainFrame.BackgroundTransparency = 0.15
     MainFrame.BorderSizePixel = 0
@@ -302,12 +303,12 @@ pcall(function()
         local direction = targetPos - origin
         
         if direction.Magnitude < 7 then
-            return "Visible", ESP_Config.Color
+            return "Visible", ESP_Config.Color, true
         end
 
-        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color end
+        if not ESP_Config.VisCheck then return "Visible", ESP_Config.Color, false end
         local lpChar = LocalPlayer.Character
-        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED end
+        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", COLOR_BLOCKED, false end
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
@@ -316,16 +317,16 @@ pcall(function()
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 30 then return "Blocked", COLOR_BLOCKED end
+            if loopCounter >= 30 then return "Blocked", COLOR_BLOCKED, false end
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
 
-            if not raycastResult then return "Visible", ESP_Config.Color end
+            if not raycastResult then return "Visible", ESP_Config.Color, false end
             
             local hitInstance = raycastResult.Instance
-            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", COLOR_BLOCKED end
-            if hitInstance:IsDescendantOf(targetPart.Parent) then return "Visible", ESP_Config.Color end
+            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", COLOR_BLOCKED, false end
+            if hitInstance:IsDescendantOf(targetPart.Parent) then return "Visible", ESP_Config.Color, false end
 
             local mat = raycastResult.Material
             local isWallbangable = WallbangableMaterials[mat] or hitInstance.Transparency >= 0.8 or hitInstance.Name:lower():find("grass") or hitInstance.Name:lower():find("glass") or hitInstance.Name:lower():find("ignore")
@@ -333,7 +334,7 @@ pcall(function()
             if isWallbangable then
                 table.insert(ignoreList, hitInstance)
             else
-                return "Blocked", COLOR_BLOCKED
+                return "Blocked", COLOR_BLOCKED, false
             end
         end
     end
@@ -345,18 +346,24 @@ pcall(function()
         local origin = Camera.CFrame.Position
         
         for entity, box in pairs(ESP_Objects) do
-            if not box.CanBeAimlocked then continue end
+            -- [REVISI] Menghapus 'if not box.CanBeAimlocked then continue end' untuk mencegah Aimlock macet.
 
             local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             if char and char ~= LocalPlayer.Character and char.Parent then
-                local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart", true)
+                -- [REVISI] Memaksa pencarian part ke kepala
+                local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
                 if head and not IsEntityDead(char) then
+                    -- [REVISI] Pengecekan visibilitas langsung di dalam fungsi
+                    local visStatus, _, _ = checkTargetVisibility(head, char)
+                    if visStatus ~= "Visible" then continue end
+
                     local studsDist = (origin - head.Position).Magnitude
                     
                     local isPlayer = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
                     if isPlayer and studsDist > 3150 then continue end
                     if not isPlayer and studsDist > 1575 then continue end
                     
+                    -- [KALIBRASI] Formula disamakan persis dengan Aimlock Logic di Render Loop
                     local bulletSpeed = GetBulletSpeed()
                     if bulletSpeed <= 0 then bulletSpeed = 1500 end
                     local timeToTarget = studsDist / bulletSpeed
@@ -364,7 +371,7 @@ pcall(function()
                     local currentVelocity = head.AssemblyLinearVelocity
                     if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0, 0, 0) end
                     
-                    local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * t * t) / 2
+                    local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * timeToTarget * timeToTarget) / 2
                     local predictedPos = head.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
                     
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
@@ -382,15 +389,14 @@ pcall(function()
 
     --[[
         ================================================
-        --      MODULE 4: ESP MANAGER (DUAL-HIGHLIGHT)     --
+        --      MODULE 4: ESP MANAGER (REVISED)           --
         ================================================
     ]]
-    -- // ESP Creation & Management using a Hybrid Highlight System
+    -- // ESP Creation & Management using a Single, Reliable Highlight
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
-            if box.Highlight_Far then box.Highlight_Far:Destroy() end
-            if box.Highlight_Close then box.Highlight_Close:Destroy() end
+            if box.Highlight then box.Highlight:Destroy() end
             if box.DistBillboard then box.DistBillboard:Destroy() end
             if box.Highlight_Item then box.Highlight_Item:Destroy() end
             if box.Billboard_Item then box.Billboard_Item:Destroy() end
@@ -404,8 +410,7 @@ pcall(function()
         if ESP_Objects[entity] then return end
 
         local box = {
-            Highlight_Far = nil,
-            Highlight_Close = nil,
+            Highlight = nil,
             DistBillboard = nil,
             DistLabel = nil,
             Connection = nil,
@@ -415,9 +420,14 @@ pcall(function()
         
         local function ApplyVisuals(char)
             if not char then return end
+            
+            -- [REVISI] Tambahkan delay untuk menangani re-streaming AI
+            if not isPlayer then
+                task.wait(0.5)
+                if not char or not char.Parent then return end -- Verifikasi ulang setelah delay
+            end
 
-            if box.Highlight_Far then box.Highlight_Far:Destroy() end
-            if box.Highlight_Close then box.Highlight_Close:Destroy() end
+            if box.Highlight then box.Highlight:Destroy() end
             if box.DistBillboard then box.DistBillboard:Destroy() end
 
             box.Character = char
@@ -428,28 +438,14 @@ pcall(function()
                 initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
             end
 
-            -- Highlight Jarak Jauh (Seluruh Tubuh)
-            local hl_far = Instance.new("Highlight", char)
-            hl_far.FillColor = initialVisColor
-            hl_far.OutlineColor = initialVisColor
-            hl_far.FillTransparency = 0.5
-            hl_far.OutlineTransparency = 0
-            hl_far.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            hl_far.Enabled = false
-            box.Highlight_Far = hl_far
-            
-            -- Highlight Jarak Dekat (Hanya Torso, lebih stabil)
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local hl_close = Instance.new("Highlight", hrp)
-                hl_close.FillColor = initialVisColor
-                hl_close.OutlineColor = initialVisColor
-                hl_close.FillTransparency = 0.4
-                hl_close.OutlineTransparency = 0
-                hl_close.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                hl_close.Enabled = false
-                box.Highlight_Close = hl_close
-            end
+            -- [REVISI] Hanya menggunakan SATU highlight yang menempel pada seluruh model
+            local hl = Instance.new("Highlight", char)
+            hl.FillColor = initialVisColor
+            hl.OutlineColor = initialVisColor
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            box.Highlight = hl
             
             local distBb = Instance.new("BillboardGui", char)
             distBb.Name = "RomeoZach_DistBillboard"
@@ -494,10 +490,6 @@ pcall(function()
         end
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
-
-        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") and not obj:FindFirstChild("FakeTorso") then
-            return false
-        end
 
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do
@@ -847,6 +839,7 @@ pcall(function()
             
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
+                InitialPerformanceBoost() -- Panggil lagi untuk memastikan semua bersih
                 
                 if ESP_Config.PerformanceMode then
                     for _, obj in pairs(Lighting:GetDescendants()) do
@@ -899,39 +892,15 @@ pcall(function()
                         pcall(function() workspace.Terrain.Decoration = false end)
                     end)
                 else
+                    -- Mengembalikan ke pengaturan semula
+                    Lighting.FogEnd = LightingBackups.FogEnd
+                    Lighting.FogStart = LightingBackups.FogStart
+                    workspace.Terrain.Decoration = LightingBackups.Decoration
+                    
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
                     end
                     table.clear(DisabledEffects)
-                    pcall(function() workspace.Terrain.Decoration = true end)
-                    
-                    task.spawn(function()
-                        local cnt = 0
-                        for obj, data in pairs(TextureBackups) do
-                            cnt = cnt + 1
-                            if cnt % 25 == 0 then task.wait() end
-                            if obj and obj.Parent then
-                                if obj:IsA("BasePart") then
-                                    if data.Material then obj.Material = data.Material end
-                                    if data.CastShadow ~= nil then obj.CastShadow = data.CastShadow end
-                                elseif obj:IsA("Texture") or obj:IsA("Decal") then
-                                    if data.Transparency then obj.Transparency = data.Transparency end
-                                elseif obj:IsA("Sound") then
-                                    if data.Volume then obj.Volume = data.Volume end
-                                elseif obj:IsA("Atmosphere") then
-                                    if data.Density then obj.Density = data.Density end
-                                end
-                            end
-                        end
-                        table.clear(TextureBackups)
-                    end)
-                    
-                    Lighting.GlobalShadows = LightingBackups.GlobalShadows
-                    Lighting.FogEnd = LightingBackups.FogEnd
-                    Lighting.FogStart = LightingBackups.FogStart
-                    Lighting.Brightness = LightingBackups.Brightness
-                    Lighting.Ambient = LightingBackups.Ambient
-                    Lighting.OutdoorAmbient = LightingBackups.OutdoorAmbient
                 end
             end
             
@@ -941,6 +910,28 @@ pcall(function()
             end
         end
     end)
+
+    local function InitialPerformanceBoost()
+        -- HAPUS KABUT & AWAN
+        Lighting.FogEnd = 999999
+        Lighting.FogStart = 999999
+        for _, obj in pairs(Lighting:GetDescendants()) do
+            if obj:IsA("Atmosphere") or obj:IsA("Clouds") then
+                pcall(function() obj:Destroy() end)
+            end
+        end
+        -- HAPUS HUJAN & SUARA
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("rain") and (obj:IsA("Sound") or obj:IsA("ParticleEmitter")) then
+                pcall(function() obj.Enabled = false; obj:Destroy() end)
+            end
+        end
+        -- HAPUS RUMPUT 3D
+        workspace.Terrain.Decoration = false
+        LightingBackups.Decoration = false
+    end
+
+    InitialPerformanceBoost()
 
     --[[
         ================================================
@@ -963,8 +954,7 @@ pcall(function()
             
             local function HideVisuals()
                 box.CanBeAimlocked = false
-                if box.Highlight_Far then box.Highlight_Far.Enabled = false end
-                if box.Highlight_Close then box.Highlight_Close.Enabled = false end
+                if box.Highlight then box.Highlight.Enabled = false end
                 if box.DistBillboard then box.DistBillboard.Enabled = false end
                 if box.Highlight_Item then box.Highlight_Item.Enabled = false end
                 if box.Billboard_Item then box.Billboard_Item.Enabled = false end
@@ -979,7 +969,7 @@ pcall(function()
             local isItem = box.IsContainer or box.IsLooseItem
             if isDead then isItem = false end
             
-            local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (box.IsContainer and ESP_Config.ESP_Containers) or (box.IsLooseItem and ESP_Config.ESP_Loot)
+            local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (isItem and (ESP_Config.ESP_Loot or ESP_Config.ESP_Containers))
 
             if not shouldProcess then
                 HideVisuals()
@@ -987,6 +977,7 @@ pcall(function()
             end
 
             if not isItem then
+                -- BLOK KHUSUS ENTITAS KARAKTER (PLAYER/AI/MAYAT)
                 local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
                 if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
 
@@ -1017,27 +1008,31 @@ pcall(function()
                     finalColor = COLOR_DEAD
                     box.CanBeAimlocked = false
                 else
-                    local visStatus, visColor = checkTargetVisibility(rootPart, char)
+                    -- [REVISI] Logika visibilitas berbasis kepala
+                    local targetPart = char:FindFirstChild("Head") or rootPart
+                    local visStatus, visColor, _ = checkTargetVisibility(targetPart, char)
                     finalColor = visColor
                     box.CanBeAimlocked = (visStatus == "Visible")
                 end
 
-                -- DUAL-HIGHLIGHT SYSTEM
-                if studsDist < 7 then
-                    -- Jarak Dekat: Gunakan highlight torso yang stabil
-                    if box.Highlight_Far then box.Highlight_Far.Enabled = false end
-                    if box.Highlight_Close then
-                        box.Highlight_Close.Enabled = true
-                        box.Highlight_Close.FillColor = finalColor
-                        box.Highlight_Close.OutlineColor = finalColor
-                    end
-                else
-                    -- Jarak Normal: Gunakan highlight seluruh tubuh
-                    if box.Highlight_Close then box.Highlight_Close.Enabled = false end
-                    if box.Highlight_Far then
-                        box.Highlight_Far.Enabled = true
-                        box.Highlight_Far.FillColor = finalColor
-                        box.Highlight_Far.OutlineColor = finalColor
+                if box.Highlight then
+                    -- [REVISI] Highlight untuk karakter SELALU AKTIF di semua jarak
+                    box.Highlight.Enabled = true
+                    box.Highlight.FillColor = finalColor
+                    box.Highlight.OutlineColor = finalColor
+
+                    -- [REVISI] Solusi Anti-Overlapping Jarak Dekat
+                    if studsDist < 7 then
+                        box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        if box.Highlight.Adornee ~= char then
+                            box.Highlight.Adornee = char
+                        end
+                        box.Highlight.OutlineTransparency = 1
+                        box.Highlight.FillTransparency = 0.4
+                    else
+                        -- Kembalikan ke setelan normal jika jarak menjauh
+                        box.Highlight.OutlineTransparency = 0
+                        box.Highlight.FillTransparency = 0.5
                     end
                 end
 
@@ -1048,14 +1043,21 @@ pcall(function()
                         box.DistLabel.TextColor3 = finalColor
                     end
                 end
-            else -- This is for items
+            else 
+                -- BLOK KHUSUS LOOT (ITEM/KONTAINER)
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
                 if not itemPos then HideVisuals(); continue end
                 
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
                 
-                if box.Highlight_Item then box.Highlight_Item.Enabled = inRange and (not box.IsContainer or (box.HasLoot and studsDist >= 4)) end
+                if box.Highlight_Item then 
+                    box.Highlight_Item.Enabled = inRange and (not box.IsContainer or box.HasLoot)
+                end
+                -- [REVISI] Logika jarak dekat HANYA untuk loot
+                if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
+                    box.Highlight_Item.Enabled = false
+                end
                 if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
             end
         end
@@ -1064,20 +1066,23 @@ pcall(function()
         if ESP_Config.AimLock and IsAiming then
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
             if potentialTargetChar then
-                local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart") or potentialTargetChar:FindFirstChildWhichIsA("BasePart", true)
+                local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
                 if tHead then
                     local visStatus, _ = checkTargetVisibility(tHead, potentialTargetChar)
                     if visStatus == "Visible" and not IsEntityDead(potentialTargetChar) then
                         CurrentTargetEntity = potentialTargetEntity; CurrentTargetChar = potentialTargetChar
                         local studsDist = (cameraPos - tHead.Position).Magnitude
+                        
+                        -- [KALIBRASI]
                         local bulletSpeed = GetBulletSpeed()
                         if bulletSpeed <= 0 then bulletSpeed = 1500 end
-                        local t = studsDist / bulletSpeed
+                        local timeToTarget = studsDist / bulletSpeed
                         local currentVelocity = tHead.AssemblyLinearVelocity
                         if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
-                        local futurePos = tHead.Position + (currentVelocity * t)
-                        local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * t * t) / 2
-                        local finalAimPos = futurePos + Vector3.new(0, dropCompensation, 0)
+                        
+                        local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * timeToTarget * timeToTarget) / 2
+                        local finalAimPos = tHead.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
+                        
                         local _, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
                         if onScreenAim then
                             Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)

@@ -1,6 +1,7 @@
-local ScriptContext = game:GetService("ScriptContext")
-ScriptContext.Error:Connect(function(message, stackTrace, scriptInstance)
-    if scriptInstance and scriptInstance.Name == "TimeLabel" then
+local LogService = game:GetService("LogService")
+LogService.MessageOut:Connect(function(message, messageType)
+    if message:find("TimeLabel") or message:find("GameplayVariables") or message:find("TargetAttachment") then
+        -- Paksa hapus dan bungkam pesan dari antrean console agar CPU tidak lag
         return
     end
 end)
@@ -106,7 +107,7 @@ pcall(function()
     local oldUi = PlayerGui:FindFirstChild("RomeoZach_Ui")
     if oldUi then
         pcall(function() oldUi:Destroy() end)
-        task.wait(0.1)
+        task.wait(0.2)
     end
 
     local RomeoZachGui = Instance.new("ScreenGui")

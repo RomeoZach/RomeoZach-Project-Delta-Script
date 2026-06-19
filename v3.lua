@@ -1,3 +1,12 @@
+--[[
+================================================================================
+--|                                                                            |--
+--|      PROJECT DELTA V3 PERFECTED - REBUILT & ENHANCED BY GEMINI CODE ASSIST     |--
+--|                             Original Author : RomeoZach                      |--
+--|                                                                            |--
+================================================================================
+]]
+
 pcall(function()
 
     --[[
@@ -378,8 +387,6 @@ pcall(function()
             if box.Highlight then box.Highlight:Destroy() end
             if box.Billboard then box.Billboard:Destroy() end
             if box.DistBillboard then box.DistBillboard:Destroy() end
-            if box.HpBillboard then box.HpBillboard:Destroy() end
-            if box.HpBillboard then box.HpBillboard:Destroy() end
             if box.Connection then box.Connection:Disconnect() end
             ESP_Objects[entity] = nil
         end
@@ -1032,8 +1039,6 @@ pcall(function()
                 if box.Highlight then box.Highlight:Destroy() end
                 if box.Billboard then box.Billboard:Destroy() end
                 if box.DistBillboard then box.DistBillboard:Destroy() end
-                if box.HpBillboard then box.HpBillboard:Destroy() end
-                if box.HpBillboard then box.HpBillboard:Destroy() end
                 if box.Connection then box.Connection:Disconnect() end
             end)
         end

@@ -1088,9 +1088,10 @@ pcall(function()
                 if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
                     box.Highlight_Item.Enabled = false
                 end
-                if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
-            end
-        end
+                if box.Billboard_Item then 
+                    box.Billboard_Item.Enabled = inRange and box.IsLooseItem 
+                end
+                end
 
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then

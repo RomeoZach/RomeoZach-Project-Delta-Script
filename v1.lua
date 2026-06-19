@@ -1127,7 +1127,8 @@ pcall(function()
         else
             CurrentTargetEntity = nil; CurrentTargetChar = nil
         end
-    end)
+    end
+end)
 
     --[[
         ================================================

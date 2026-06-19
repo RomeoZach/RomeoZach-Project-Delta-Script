@@ -499,12 +499,15 @@ pcall(function()
             return false
         end
         
-        -- [PERBAIKAN] Mengembalikan filter ketat dari versi sebelumnya untuk mencegah crash akibat "false positive" pada objek map.
-        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") and not nameLower:find("dead") and not nameLower:find("corpse") then
-            return false
-        end
-
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
+
+        -- [PERBAIKAN KRITIS] Mengembalikan filter super ketat dari V1. Ini adalah kunci untuk mencegah crash.
+        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
+            -- Pengecualian untuk mayat yang mungkin kehilangan komponen pakaian
+            if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then
+                return false
+            end
+        end
 
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do
@@ -1088,10 +1091,9 @@ pcall(function()
                 if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
                     box.Highlight_Item.Enabled = false
                 end
-                if box.Billboard_Item then 
-                    box.Billboard_Item.Enabled = inRange and box.IsLooseItem 
-                end
-                end
+                if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
+            end
+        end -- Akhir dari loop 'for entity, box in pairs(ESP_Objects) do'
 
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
@@ -1127,9 +1129,8 @@ pcall(function()
             end
         else
             CurrentTargetEntity = nil; CurrentTargetChar = nil
-        end
-    end
-end)
+        end -- Akhir dari blok 'if ESP_Config.AimLock and IsAiming then'
+    end) -- Akhir dari fungsi 'RunService:BindToRenderStep'
 
     --[[
         ================================================

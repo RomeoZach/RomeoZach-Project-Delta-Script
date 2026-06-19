@@ -142,7 +142,7 @@ local success, err = pcall(function()
 
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 480, 0, 260) 
+    MainFrame.Size = UDim2.new(0, 480, 0, 300) 
     MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
     MainFrame.BackgroundTransparency = 0.15
@@ -1128,7 +1128,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
+--[[
         ================================================
         --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
@@ -1141,6 +1141,7 @@ local success, err = pcall(function()
         if not lpHead then return end
         
         local cameraPos = Camera.CFrame.Position
+        local viewportSize = Camera.ViewportSize
 
         for entity, box in pairs(ESP_Objects) do
             if typeof(entity) == "Instance" and not entity.Parent then
@@ -1159,11 +1160,10 @@ local success, err = pcall(function()
             
             local function HideVisuals()
                 box.CanBeAimlocked = false
-                if box.Highlight then 
-                    box.Highlight.Enabled = false 
-                end
-                if box.DistBillboard then 
-                    box.DistBillboard.Enabled = false 
+                if box.Drawings then
+                    for _, drawObj in pairs(box.Drawings) do
+                        drawObj.Visible = false
+                    end
                 end
                 if box.Highlight_Item then 
                     box.Highlight_Item.Enabled = false 
@@ -1200,7 +1200,9 @@ local success, err = pcall(function()
             end
 
             if not isItem then
-                local rootPart = char:FindFirstChild("Head")
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                local headPart = char:FindFirstChild("Head")
+                
                 if isDead and not rootPart then
                     rootPart = char:FindFirstChildWhichIsA("BasePart", true)
                 end
@@ -1208,6 +1210,10 @@ local success, err = pcall(function()
                 if not rootPart then
                     HideVisuals()
                     continue
+                end
+                
+                if not headPart then
+                    headPart = rootPart
                 end
 
                 local rootPos = rootPart.Position
@@ -1240,37 +1246,17 @@ local success, err = pcall(function()
                 if isDead then
                     finalColor = COLOR_DEAD
                     box.CanBeAimlocked = false
-                    
-                    if box.DistBillboard then
-                        box.DistBillboard.Enabled = false
-                    end
-                    
-                    if box.Highlight then
-                        if isCloseRange then
-                            box.Highlight.Enabled = false
-                        else
-                            box.Highlight.Enabled = true
-                            box.Highlight.FillColor = finalColor
-                            box.Highlight.OutlineColor = finalColor
-                            box.Highlight.OutlineTransparency = 0
-                            box.Highlight.FillTransparency = 0.5
-                        end
-                    end
+                    textColor = COLOR_DEAD
                 else
-                    local targetPart = char:FindFirstChild("Head")
-                    if not targetPart then
-                        targetPart = rootPart
-                    end
-                    
-                    local visStatus, canLock = checkTargetVisibility(targetPart, char)
+                    local visStatus, canLock = checkTargetVisibility(headPart, char)
                     isTeam = IsTeammate(char)
                     
                     if isTeam then
                         finalColor = ESP_Config.Color
                         if visStatus == "Blocked" then
-                            textColor = Color3.fromRGB(0, 150, 0)
+                            textColor = COLOR_TEAM_BLOCKED
                         else
-                            textColor = Color3.fromRGB(50, 255, 50)
+                            textColor = COLOR_TEAM_VISIBLE
                         end
                         box.CanBeAimlocked = false
                     else
@@ -1283,28 +1269,75 @@ local success, err = pcall(function()
                         end
                         box.CanBeAimlocked = canLock
                     end
+                end
 
-                    if box.Highlight then
+                -- Kalkulasi 2D Drawing (World To Screen)
+                if box.Drawings then
+                    local headPos = headPart.Position + Vector3.new(0, 0.5, 0)
+                    local legPos = rootPart.Position - Vector3.new(0, 3, 0)
+                    
+                    local screenHead, onScreenHead = Camera:WorldToViewportPoint(headPos)
+                    local screenLeg, onScreenLeg = Camera:WorldToViewportPoint(legPos)
+                    
+                    if onScreenHead or onScreenLeg then
+                        local boxHeight = math.abs(screenHead.Y - screenLeg.Y)
+                        local boxWidth = boxHeight * 0.65 -- Proporsi standar badan manusia
+                        local boxPos = Vector2.new(screenHead.X - (boxWidth / 2), screenHead.Y)
+                        
+                        -- Atur Jarak Dekat
                         if isCloseRange then
-                            box.Highlight.Enabled = false
+                            box.Drawings.Box.Visible = false
+                            box.Drawings.BoxOutline.Visible = false
+                            if isDead then
+                                box.Drawings.Dist.Visible = false
+                            else
+                                box.Drawings.Dist.Visible = true
+                                box.Drawings.Dist.Text = string.format("[%d m]", distMeter)
+                                box.Drawings.Dist.Position = Vector2.new(screenHead.X, screenLeg.Y + 5)
+                                box.Drawings.Dist.Color = textColor
+                            end
+                            box.Drawings.Name.Visible = false
                         else
-                            box.Highlight.Enabled = true
-                            box.Highlight.FillColor = finalColor
-                            box.Highlight.OutlineColor = finalColor
-                            box.Highlight.OutlineTransparency = 0
-                            box.Highlight.FillTransparency = 0.5
+                            if isDead then
+                                -- ESP Mayat (Box Ungu Plum, Tanpa Jarak & Nama)
+                                box.Drawings.Box.Visible = true
+                                box.Drawings.Box.Position = boxPos
+                                box.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
+                                box.Drawings.Box.Color = finalColor
+                                
+                                box.Drawings.BoxOutline.Visible = true
+                                box.Drawings.BoxOutline.Position = boxPos
+                                box.Drawings.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
+                                box.Drawings.BoxOutline.Color = Color3.new(0, 0, 0)
+                                
+                                box.Drawings.Dist.Visible = false
+                                box.Drawings.Name.Visible = false
+                            else
+                                -- ESP Player/AI (Box + Teks Jarak)
+                                box.Drawings.Box.Visible = true
+                                box.Drawings.Box.Position = boxPos
+                                box.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
+                                box.Drawings.Box.Color = finalColor
+                                
+                                box.Drawings.BoxOutline.Visible = true
+                                box.Drawings.BoxOutline.Position = boxPos
+                                box.Drawings.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
+                                box.Drawings.BoxOutline.Color = Color3.new(0, 0, 0)
+                                
+                                box.Drawings.Dist.Visible = true
+                                box.Drawings.Dist.Text = string.format("[%d m]", distMeter)
+                                box.Drawings.Dist.Position = Vector2.new(screenHead.X, screenLeg.Y + 5)
+                                box.Drawings.Dist.Color = textColor
+                                
+                                box.Drawings.Name.Visible = false -- Matikan nama agar layar tidak penuh
+                            end
                         end
-                    end
-
-                    if box.DistBillboard then
-                        box.DistBillboard.Enabled = true
-                        if box.DistLabel then
-                            box.DistLabel.Text = string.format("[%d m]", distMeter)
-                            box.DistLabel.TextColor3 = textColor
-                        end
+                    else
+                        HideVisuals()
                     end
                 end
             else 
+                -- Logika ESP Item (Menggunakan Highlight 3D & Billboard)
                 local targetAdornee = box.TargetAdornee
                 local itemPos = nil
                 if targetAdornee and targetAdornee:IsA("BasePart") then

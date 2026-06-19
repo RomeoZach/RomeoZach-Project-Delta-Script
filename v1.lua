@@ -818,7 +818,8 @@ local success, err = pcall(function()
         end
 
         pcall(function()
-            workspace.Terrain.Decoration = false
+            -- workspace.Terrain.Decoration = false
+            workspace.Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(50, 50, 50)) 
             LightingBackups.Decoration = false
         end)
     end
@@ -860,7 +861,7 @@ local success, err = pcall(function()
                 else
                     Lighting.FogEnd = LightingBackups.FogEnd
                     Lighting.FogStart = LightingBackups.FogStart
-                    workspace.Terrain.Decoration = LightingBackups.Decoration
+                    -- workspace.Terrain.Decoration = LightingBackups.Decoration
                     
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end

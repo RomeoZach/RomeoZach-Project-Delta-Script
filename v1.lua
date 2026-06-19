@@ -499,6 +499,11 @@ pcall(function()
             return false
         end
         
+        -- [PERBAIKAN] Mengembalikan filter ketat dari versi sebelumnya untuk mencegah crash akibat "false positive" pada objek map.
+        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") and not nameLower:find("dead") and not nameLower:find("corpse") then
+            return false
+        end
+
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}

@@ -7,6 +7,15 @@
 ================================================================================
 ]]
 
+-- // Global Error Bypass (Membungkam error internal game agar tidak lag)
+local ScriptContext = game:GetService("ScriptContext")
+ScriptContext.Error:Connect(function(message, stackTrace, scriptInstance)
+    if scriptInstance and scriptInstance.Name == "TimeLabel" then
+        -- Bungkam error dari script UI bawaan game yang rusak
+        return
+    end
+end)
+
 pcall(function()
 
     --[[

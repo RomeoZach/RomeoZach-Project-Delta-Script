@@ -959,170 +959,182 @@ local success, err = pcall(function()
         --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
     ]]
-    RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
-        local lpChar = LocalPlayer.Character
-        local lpHead = lpChar and lpChar:FindFirstChild("Head")
-        if not lpHead then return end
-        local cameraPos = Camera.CFrame.Position
-
-        for entity, box in pairs(ESP_Objects) do
-            if typeof(entity) == "Instance" and not entity.Parent then
-                RemoveESP(entity)
+-- // RENDER LOOP & AIMLOCK (ROMBAK TOTAL LOGIKA JARAK ESP)
+RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
+    local lpChar = LocalPlayer.Character
+    local lpHead = lpChar and lpChar:FindFirstChild("Head")
+    if not lpHead then return end
+    local cameraPos = Camera.CFrame.Position
+    
+    for entity, box in pairs(ESP_Objects) do
+        if typeof(entity) == "Instance" and not entity.Parent then
+            RemoveESP(entity)
+            continue
+        end
+        
+        local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
+        
+        local function HideVisuals()
+            box.CanBeAimlocked = false
+            if box.Highlight then box.Highlight.Enabled = false end
+            if box.DistBillboard then box.DistBillboard.Enabled = false end
+            if box.Highlight_Item then box.Highlight_Item.Enabled = false end
+            if box.Billboard_Item then box.Billboard_Item.Enabled = false end
+        end
+        
+        if not char or not char.Parent or char == lpChar then
+            HideVisuals()
+            continue
+        end
+        
+        local isDead = IsEntityDead(char)
+        local isItem = box.IsContainer or box.IsLooseItem
+        if isDead then isItem = false end
+        
+        local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (isItem and (ESP_Config.ESP_Loot or ESP_Config.ESP_Containers))
+        if not shouldProcess then
+            HideVisuals()
+            continue
+        end
+        
+        -- ========================================================
+        -- LOGIKA KONTROL ESP MAKHLUK HIDUP & MAYAT (PLAYER / AI / CORPSE)
+        -- ========================================================
+        if not isItem then
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+            if isDead and not rootPart then
+                rootPart = char:FindFirstChildWhichIsA("BasePart", true)
+            end
+            if not rootPart then
+                HideVisuals()
                 continue
             end
             
-            local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
+            local rootPos = rootPart.Position
+            local studsDist = (cameraPos - rootPos).Magnitude
+            local distMeter = math.floor(studsDist / 3.571428)
+            local shouldRender = false
             
-            local function HideVisuals()
+            if isDead then
+                shouldRender = (studsDist <= 357) -- Jarak cek deteksi maksimal mayat
+            else
+                local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
+                shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
+            end
+            
+            if not shouldRender then
+                HideVisuals()
+                continue
+            end
+            
+            local finalColor
+            if isDead then
+                finalColor = COLOR_DEAD
                 box.CanBeAimlocked = false
-                if box.Highlight then box.Highlight.Enabled = false end
-                if box.DistBillboard then box.DistBillboard.Enabled = false end
-                if box.Highlight_Item then box.Highlight_Item.Enabled = false end
-                if box.Billboard_Item then box.Billboard_Item.Enabled = false end
+            else
+                local targetPart = char:FindFirstChild("Head") or rootPart
+                local visStatus, visColor, _ = checkTargetVisibility(targetPart, char)
+                finalColor = visColor
+                box.CanBeAimlocked = (visStatus == "Visible")
             end
-
-            if not char or not char.Parent or char == lpChar then
-                HideVisuals()
-                continue
-            end
-
-            local isDead = IsEntityDead(char)
-            local isItem = box.IsContainer or box.IsLooseItem
-            if isDead then isItem = false end
             
-            local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (isItem and (ESP_Config.ESP_Loot or ESP_Config.ESP_Containers))
-
-            if not shouldProcess then
+            -- [PERBAIKAN UTAMA]: Menjaga warna ESP makhluk hidup/mayat tetap tebal & menyala dari jarak dekat!
+            if box.Highlight then
+                box.Highlight.Enabled = true
+                box.Highlight.FillColor = finalColor
+                box.Highlight.OutlineColor = finalColor
+                box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                
+                if box.Highlight.Adornee ~= char then
+                    box.Highlight.Adornee = char
+                end
+                
+                -- JANGAN buat transparan meskipun jaraknya menempel (< 7 studs)
+                box.Highlight.OutlineTransparency = 0 -- 0 artinya garis luar muncul sangat tajam dan tegas
+                box.Highlight.FillTransparency = 0.35 -- Warna isian badan tetap padat dan terlihat jelas
+            end
+            
+            if box.DistBillboard then
+                box.DistBillboard.Enabled = not isDead
+                if box.DistBillboard.Enabled and box.DistLabel then
+                    box.DistLabel.Text = string.format("[%d m]", distMeter)
+                    box.DistLabel.TextColor3 = finalColor
+                end
+            end
+            
+        -- ========================================================
+        -- LOGIKA KONTROL ESP BARANG & CONTAINER (LOOSE ITEM / CONTAINERS)
+        -- ========================================================
+        else 
+            local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
+            if not itemPos then
                 HideVisuals()
                 continue
             end
-
-            if not isItem then
-                local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-                if isDead and not rootPart then
-                    rootPart = char:FindFirstChildWhichIsA("BasePart", true)
+            
+            local studsDist = (cameraPos - itemPos).Magnitude
+            local inRange = (studsDist <= 87.5) -- Batas render maksimal loot
+            
+            -- Cek apakah player berada sangat dekat dengan loot (< 7 studs)
+            if studsDist < 7 then
+                -- Jika sangat dekat, matikan warna highlight emas agar tidak menutupi barang asli
+                if box.Highlight_Item then 
+                    box.Highlight_Item.Enabled = false 
                 end
-
-                if not rootPart then
-                    HideVisuals()
-                    continue
+                if box.Billboard_Item then 
+                    box.Billboard_Item.Enabled = false 
                 end
-
-                local rootPos = rootPart.Position
-                local studsDist = (cameraPos - rootPos).Magnitude
-                local distMeter = math.floor(studsDist / 3.571428)
-
-                local shouldRender = false
-                if isDead then
-                    shouldRender = (studsDist <= 357)
-                else
-                    local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
-                    shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
-                end
-
-                if not shouldRender then
-                    HideVisuals()
-                    continue
-                end
-
-                local finalColor
-                if isDead then
-                    finalColor = COLOR_DEAD
-                    box.CanBeAimlocked = false
-                else
-                    local targetPart = char:FindFirstChild("Head") or rootPart
-                    local visStatus, visColor, _ = checkTargetVisibility(targetPart, char)
-                    finalColor = visColor
-                    box.CanBeAimlocked = (visStatus == "Visible")
-                end
-
-                if box.Highlight then
-                    box.Highlight.Enabled = true
-                    box.Highlight.FillColor = finalColor
-                    box.Highlight.OutlineColor = finalColor
-
-                    if studsDist < 7 then
-                        box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        if box.Highlight.Adornee ~= char then
-                            box.Highlight.Adornee = char
-                        end
-                        box.Highlight.OutlineTransparency = 1
-                        box.Highlight.FillTransparency = 0.4
-                    else
-                        box.Highlight.OutlineTransparency = 0
-                        box.Highlight.FillTransparency = 0.5
-                    end
-                end
-
-                if box.DistBillboard then
-                    box.DistBillboard.Enabled = not isDead
-                    if box.DistBillboard.Enabled and box.DistLabel then
-                        box.DistLabel.Text = string.format("[%d m]", distMeter)
-                        box.DistLabel.TextColor3 = finalColor
-                    end
-                end
-            else 
-                local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then
-                    HideVisuals()
-                    continue
-                end
-                
-                local studsDist = (cameraPos - itemPos).Magnitude
-                local inRange = (studsDist <= 87.5)
-                
+            else
+                -- Jika berada di luar jarak 7 studs (namun masih di dalam range), hidupkan warnanya kembali
                 if box.Highlight_Item then 
                     box.Highlight_Item.Enabled = inRange and (not box.IsContainer or box.HasLoot)
-                end
-                if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
-                    box.Highlight_Item.Enabled = false
                 end
                 if box.Billboard_Item then
                     box.Billboard_Item.Enabled = inRange and box.IsLooseItem
                 end
             end
-        end 
-
-        -- // Aimlock Logic
-        if ESP_Config.AimLock and IsAiming then
-            local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
-            if potentialTargetChar then
-                local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
-                if tHead then
-                    local visStatus, _ = checkTargetVisibility(tHead, potentialTargetChar)
-                    if visStatus == "Visible" and not IsEntityDead(potentialTargetChar) then
-                        CurrentTargetEntity = potentialTargetEntity
-                        CurrentTargetChar = potentialTargetChar
-                        local studsDist = (cameraPos - tHead.Position).Magnitude
-                        
-                        local bulletSpeed = GetBulletSpeed()
-                        if bulletSpeed <= 0 then bulletSpeed = 1500 end
-                        local timeToTarget = studsDist / bulletSpeed
-                        local currentVelocity = tHead.AssemblyLinearVelocity
-                        if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
-                        
-                        local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * timeToTarget * timeToTarget) / 2
-                        local finalAimPos = tHead.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
-                        
-                        local _, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
-                        if onScreenAim then
-                            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
-                        end
-                    else
-                        CurrentTargetEntity = nil
-                        CurrentTargetChar = nil
+        end
+    end 
+    
+    -- // Sisa Logika Aimlock di bawahnya (Jangan diubah karena sudah aman 1000%)
+    if ESP_Config.AimLock and IsAiming then
+        local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
+        if potentialTargetChar then
+            local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
+            if tHead then
+                local visStatus, _ = checkTargetVisibility(tHead, potentialTargetChar)
+                if visStatus == "Visible" and not IsEntityDead(potentialTargetChar) then
+                    CurrentTargetEntity = potentialTargetEntity
+                    CurrentTargetChar = potentialTargetChar
+                    local studsDist = (cameraPos - tHead.Position).Magnitude
+                    
+                    local bulletSpeed = GetBulletSpeed()
+                    if bulletSpeed <= 0 then bulletSpeed = 1500 end
+                    local timeToTarget = studsDist / bulletSpeed
+                    local currentVelocity = tHead.AssemblyLinearVelocity
+                    if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
+                    
+                    local dropCompensation = ESP_Config.GunMods and 0 or (workspace.Gravity * timeToTarget * timeToTarget) / 2
+                    local finalAimPos = tHead.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
+                    
+                    local _, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
+                    if onScreenAim then
+                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
                     end
                 else
                     CurrentTargetEntity = nil
                     CurrentTargetChar = nil
                 end
+            else
+                CurrentTargetEntity = nil
+                CurrentTargetChar = nil
             end
-        else
-            CurrentTargetEntity = nil
-            CurrentTargetChar = nil
         end
-    end)
-
+    else
+        CurrentTargetEntity = nil
+        CurrentTargetChar = nil
+    end
+end)
     --[[
         ================================================
         -- MODULE 10: INITIAL CONNECTIONS & PURGE     --

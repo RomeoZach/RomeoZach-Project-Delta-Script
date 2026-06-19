@@ -1,20 +1,19 @@
---[[
-================================================================================
---|                                                                          |--
---|    PROJECT DELTA V5 - FINAL (RESTORED VISUALS & STABLE ENGINE)           |--
---|                             Original Author : RomeoZach                  |--
---|                                                                          |--
-================================================================================
-]]
-
--- // Global Error Bypass (Membungkam error internal game agar tidak lag)
-local ScriptContext = game:GetService("ScriptContext")
-ScriptContext.Error:Connect(function(message, stackTrace, scriptInstance)
-    if scriptInstance and scriptInstance.Name == "TimeLabel" then
-        -- Bungkam error dari script UI bawaan game yang rusak
+local LogService = game:GetService("LogService")
+LogService.MessageOut:Connect(function(message, messageType)
+    if message:find("TimeLabel") or message:find("GameplayVariables") or message:find("TargetAttachment") then
+        -- Paksa hapus dan bungkam pesan dari antrean console agar CPU tidak lag
         return
     end
 end)
+
+--[[
+    ================================================================================
+    --|                                                                            |--
+    --|           PROJECT DELTA V8 ULTIMATE - REBUILT & MODULARIZED                |--
+    --|                             Author  : RomeoZach                            |--
+    --|                                                                            |--
+    ================================================================================
+]]
 
 pcall(function()
 
@@ -105,8 +104,10 @@ pcall(function()
 
     -- // UI Framework (Rebuilt - 2 Column Layout)
     local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
-    if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
-        pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
+    local oldUi = PlayerGui:FindFirstChild("RomeoZach_Ui")
+    if oldUi then
+        pcall(function() oldUi:Destroy() end)
+        task.wait(0.2)
     end
 
     local RomeoZachGui = Instance.new("ScreenGui")
@@ -499,6 +500,16 @@ pcall(function()
         end
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
+
+        -- [PERBAIKAN KRITIS] Mengadopsi filter super ketat dari V1 yang terbukti stabil.
+        -- Ini adalah kunci utama untuk mencegah crash saat kompilasi/eksekusi.
+        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
+            -- Pengecualian hanya diberikan untuk mayat/ragdoll, yang akan divalidasi lebih lanjut oleh IsEntityDead.
+            -- Jika tidak punya baju DAN bukan mayat, ini 100% objek map dan harus diblokir.
+            if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then
+                return false
+            end
+        end
 
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do
@@ -921,23 +932,38 @@ pcall(function()
     end)
 
     local function InitialPerformanceBoost()
-        -- HAPUS KABUT & AWAN
-        Lighting.FogEnd = 999999
-        Lighting.FogStart = 999999
-        for _, obj in pairs(Lighting:GetDescendants()) do
-            if obj:IsA("Atmosphere") or obj:IsA("Clouds") then
-                pcall(function() obj:Destroy() end)
+        -- NONAKTIFKAN KABUT & AWAN SECARA AMAN
+        pcall(function()
+            Lighting.FogEnd = 999999
+            Lighting.FogStart = 999999
+        end)
+        
+        for _, obj in ipairs(Lighting:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("Atmosphere") then
+                    obj.Density = 0
+                elseif obj:IsA("Clouds") then
+                    obj.Enabled = false
+                end
+            end)
+        end
+
+        -- NONAKTIFKAN HUJAN & SUARA SECARA AMAN
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("rain") then
+                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+                    pcall(function() obj.Enabled = false end)
+                elseif obj:IsA("Sound") then
+                    pcall(function() obj.Volume = 0 end)
+                end
             end
         end
-        -- HAPUS HUJAN & SUARA
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name:lower():find("rain") and (obj:IsA("Sound") or obj:IsA("ParticleEmitter")) then
-                pcall(function() obj.Enabled = false; obj:Destroy() end)
-            end
-        end
-        -- HAPUS RUMPUT 3D
-        workspace.Terrain.Decoration = false
-        LightingBackups.Decoration = false
+
+        -- NONAKTIFKAN RUMPUT 3D
+        pcall(function()
+            workspace.Terrain.Decoration = false
+            LightingBackups.Decoration = false
+        end)
     end
 
     InitialPerformanceBoost()
@@ -1069,7 +1095,7 @@ pcall(function()
                 end
                 if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
             end
-        end
+        end -- Akhir dari loop 'for entity, box in pairs(ESP_Objects) do'
 
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
@@ -1105,8 +1131,8 @@ pcall(function()
             end
         else
             CurrentTargetEntity = nil; CurrentTargetChar = nil
-        end
-    end)
+        end -- Akhir dari blok 'if ESP_Config.AimLock and IsAiming then'
+    end) -- Akhir dari fungsi 'RunService:BindToRenderStep'
 
     --[[
         ================================================
@@ -1142,4 +1168,4 @@ pcall(function()
     Players.PlayerRemoving:Connect(RemoveESP)
     game:BindToClose(PurgeAllGarbageMemory)
 
-end)
+end) -- Pasangan kurung penutup untuk pcall(function() di baris pertama script

@@ -1155,7 +1155,6 @@ pcall(function()
         collectgarbage("collect")
     end
 
-    Players.PlayerRemoving:Connect(RemoveESP)
-    game:BindToClose(PurgeAllGarbageMemory)
-
+Players.PlayerRemoving:Connect(RemoveESP)
+game:BindToClose(PurgeAllGarbageMemory)
 end)

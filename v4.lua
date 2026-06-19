@@ -142,6 +142,7 @@ local success, err = pcall(function()
 
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
+    -- UI Size Diperbaiki menjadi 300 sesuai permintaan!
     MainFrame.Size = UDim2.new(0, 480, 0, 300) 
     MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
@@ -160,7 +161,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Ultimate 2D"
+    Header.Text = "Project Delta V8 - Ultimate"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -491,24 +492,17 @@ local success, err = pcall(function()
 
     --[[
         ================================================
-        --      MODULE 4: ESP MANAGER (2D DRAWING)    --
+        --      MODULE 4: ESP MANAGER (CHAMS 3D)      --
         ================================================
     ]]
-    local function CreateDraw(class, props)
-        local d = Drawing.new(class)
-        for k, v in pairs(props) do
-            d[k] = v
-        end
-        return d
-    end
-
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
-            if box.Drawings then
-                for _, drawObj in pairs(box.Drawings) do
-                    pcall(function() drawObj:Remove() end)
-                end
+            if box.Highlight then
+                box.Highlight:Destroy()
+            end
+            if box.DistBillboard then
+                box.DistBillboard:Destroy()
             end
             if box.Highlight_Item then
                 box.Highlight_Item:Destroy()
@@ -528,11 +522,12 @@ local success, err = pcall(function()
         if ESP_Objects[entity] then return end
 
         local box = {
-            Drawings = nil,
+            Highlight = nil,
+            DistBillboard = nil,
+            DistLabel = nil,
             Connection = nil,
             CanBeAimlocked = false,
-            IsHelicopter = false,
-            Character = nil
+            IsHelicopter = false
         }
         
         local function ApplyVisuals(char)
@@ -543,20 +538,56 @@ local success, err = pcall(function()
                 if not char or not char.Parent then return end 
             end
 
-            if box.Drawings then
-                for _, drawObj in pairs(box.Drawings) do
-                    pcall(function() drawObj:Remove() end)
-                end
+            if box.Highlight then
+                box.Highlight:Destroy()
+            end
+            if box.DistBillboard then
+                box.DistBillboard:Destroy()
             end
 
             box.Character = char
             
-            box.Drawings = {
-                BoxOutline = CreateDraw("Square", {Thickness = 3, Filled = false, Visible = false}),
-                Box = CreateDraw("Square", {Thickness = 1, Filled = false, Visible = false}),
-                Name = CreateDraw("Text", {Center = true, Size = 13, Outline = true, Visible = false}),
-                Dist = CreateDraw("Text", {Center = true, Size = 13, Outline = true, Visible = false})
-            }
+            local rootPart = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart", true)
+            local initialVisColor = COLOR_BLOCKED
+            
+            if rootPart then
+                local visStatus, canLock = checkTargetVisibility(rootPart, char)
+                if canLock then
+                    initialVisColor = ESP_Config.Color
+                end
+            end
+
+            local hl = Instance.new("Highlight")
+            hl.FillColor = initialVisColor
+            hl.OutlineColor = initialVisColor
+            hl.FillTransparency = 0.5
+            hl.OutlineTransparency = 0
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            hl.Adornee = char
+            hl.Parent = char
+            box.Highlight = hl
+            
+            local distBb = Instance.new("BillboardGui")
+            distBb.Name = "RomeoZach_DistBillboard"
+            distBb.Size = UDim2.new(0, 200, 0, 50)
+            distBb.AlwaysOnTop = true
+            distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LeftFoot")
+            distBb.StudsOffset = Vector3.new(0, -4.5, 0)
+            distBb.Parent = char
+            box.DistBillboard = distBb
+            
+            local distTxt = Instance.new("TextLabel", distBb)
+            distTxt.Size = UDim2.new(1, 0, 1, 0)
+            distTxt.BackgroundTransparency = 1
+            distTxt.Text = ""
+            distTxt.TextColor3 = initialVisColor
+            distTxt.TextSize = 13
+            distTxt.Font = ESP_Config.Font
+            distTxt.TextStrokeTransparency = 0
+            distTxt.TextYAlignment = Enum.TextYAlignment.Top
+            local uiStroke = Instance.new("UIStroke", distTxt)
+            uiStroke.Thickness = 1.5
+            box.DistLabel = distTxt
         end
         
         if isPlayer then 
@@ -569,7 +600,6 @@ local success, err = pcall(function()
         end
         ESP_Objects[entity] = box
     end
-
     --[[
         ================================================
         --        MODULE 5: SCANNER UTILITIES         --
@@ -1005,7 +1035,6 @@ local success, err = pcall(function()
             isItemScanning = false
         end
     end)
-
     --[[
         ================================================
         --     MODULE 8: MISCELLANEOUS SCANNER        --
@@ -1128,7 +1157,7 @@ local success, err = pcall(function()
         end
     end)
 
---[[
+    --[[
         ================================================
         --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
@@ -1141,7 +1170,6 @@ local success, err = pcall(function()
         if not lpHead then return end
         
         local cameraPos = Camera.CFrame.Position
-        local viewportSize = Camera.ViewportSize
 
         for entity, box in pairs(ESP_Objects) do
             if typeof(entity) == "Instance" and not entity.Parent then
@@ -1160,10 +1188,11 @@ local success, err = pcall(function()
             
             local function HideVisuals()
                 box.CanBeAimlocked = false
-                if box.Drawings then
-                    for _, drawObj in pairs(box.Drawings) do
-                        drawObj.Visible = false
-                    end
+                if box.Highlight then 
+                    box.Highlight.Enabled = false 
+                end
+                if box.DistBillboard then 
+                    box.DistBillboard.Enabled = false 
                 end
                 if box.Highlight_Item then 
                     box.Highlight_Item.Enabled = false 
@@ -1200,9 +1229,7 @@ local success, err = pcall(function()
             end
 
             if not isItem then
-                local rootPart = char:FindFirstChild("HumanoidRootPart")
-                local headPart = char:FindFirstChild("Head")
-                
+                local rootPart = char:FindFirstChild("Head")
                 if isDead and not rootPart then
                     rootPart = char:FindFirstChildWhichIsA("BasePart", true)
                 end
@@ -1210,10 +1237,6 @@ local success, err = pcall(function()
                 if not rootPart then
                     HideVisuals()
                     continue
-                end
-                
-                if not headPart then
-                    headPart = rootPart
                 end
 
                 local rootPos = rootPart.Position
@@ -1246,9 +1269,29 @@ local success, err = pcall(function()
                 if isDead then
                     finalColor = COLOR_DEAD
                     box.CanBeAimlocked = false
-                    textColor = COLOR_DEAD
+                    
+                    if box.DistBillboard then
+                        box.DistBillboard.Enabled = false
+                    end
+                    
+                    if box.Highlight then
+                        if isCloseRange then
+                            box.Highlight.Enabled = false
+                        else
+                            box.Highlight.Enabled = true
+                            box.Highlight.FillColor = finalColor
+                            box.Highlight.OutlineColor = finalColor
+                            box.Highlight.OutlineTransparency = 0
+                            box.Highlight.FillTransparency = 0.5
+                        end
+                    end
                 else
-                    local visStatus, canLock = checkTargetVisibility(headPart, char)
+                    local targetPart = char:FindFirstChild("Head")
+                    if not targetPart then
+                        targetPart = rootPart
+                    end
+                    
+                    local visStatus, canLock = checkTargetVisibility(targetPart, char)
                     isTeam = IsTeammate(char)
                     
                     if isTeam then
@@ -1269,75 +1312,28 @@ local success, err = pcall(function()
                         end
                         box.CanBeAimlocked = canLock
                     end
-                end
 
-                -- Kalkulasi 2D Drawing (World To Screen)
-                if box.Drawings then
-                    local headPos = headPart.Position + Vector3.new(0, 0.5, 0)
-                    local legPos = rootPart.Position - Vector3.new(0, 3, 0)
-                    
-                    local screenHead, onScreenHead = Camera:WorldToViewportPoint(headPos)
-                    local screenLeg, onScreenLeg = Camera:WorldToViewportPoint(legPos)
-                    
-                    if onScreenHead or onScreenLeg then
-                        local boxHeight = math.abs(screenHead.Y - screenLeg.Y)
-                        local boxWidth = boxHeight * 0.65 -- Proporsi standar badan manusia
-                        local boxPos = Vector2.new(screenHead.X - (boxWidth / 2), screenHead.Y)
-                        
-                        -- Atur Jarak Dekat
+                    if box.Highlight then
                         if isCloseRange then
-                            box.Drawings.Box.Visible = false
-                            box.Drawings.BoxOutline.Visible = false
-                            if isDead then
-                                box.Drawings.Dist.Visible = false
-                            else
-                                box.Drawings.Dist.Visible = true
-                                box.Drawings.Dist.Text = string.format("[%d m]", distMeter)
-                                box.Drawings.Dist.Position = Vector2.new(screenHead.X, screenLeg.Y + 5)
-                                box.Drawings.Dist.Color = textColor
-                            end
-                            box.Drawings.Name.Visible = false
+                            box.Highlight.Enabled = false
                         else
-                            if isDead then
-                                -- ESP Mayat (Box Ungu Plum, Tanpa Jarak & Nama)
-                                box.Drawings.Box.Visible = true
-                                box.Drawings.Box.Position = boxPos
-                                box.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
-                                box.Drawings.Box.Color = finalColor
-                                
-                                box.Drawings.BoxOutline.Visible = true
-                                box.Drawings.BoxOutline.Position = boxPos
-                                box.Drawings.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
-                                box.Drawings.BoxOutline.Color = Color3.new(0, 0, 0)
-                                
-                                box.Drawings.Dist.Visible = false
-                                box.Drawings.Name.Visible = false
-                            else
-                                -- ESP Player/AI (Box + Teks Jarak)
-                                box.Drawings.Box.Visible = true
-                                box.Drawings.Box.Position = boxPos
-                                box.Drawings.Box.Size = Vector2.new(boxWidth, boxHeight)
-                                box.Drawings.Box.Color = finalColor
-                                
-                                box.Drawings.BoxOutline.Visible = true
-                                box.Drawings.BoxOutline.Position = boxPos
-                                box.Drawings.BoxOutline.Size = Vector2.new(boxWidth, boxHeight)
-                                box.Drawings.BoxOutline.Color = Color3.new(0, 0, 0)
-                                
-                                box.Drawings.Dist.Visible = true
-                                box.Drawings.Dist.Text = string.format("[%d m]", distMeter)
-                                box.Drawings.Dist.Position = Vector2.new(screenHead.X, screenLeg.Y + 5)
-                                box.Drawings.Dist.Color = textColor
-                                
-                                box.Drawings.Name.Visible = false -- Matikan nama agar layar tidak penuh
-                            end
+                            box.Highlight.Enabled = true
+                            box.Highlight.FillColor = finalColor
+                            box.Highlight.OutlineColor = finalColor
+                            box.Highlight.OutlineTransparency = 0
+                            box.Highlight.FillTransparency = 0.5
                         end
-                    else
-                        HideVisuals()
+                    end
+
+                    if box.DistBillboard then
+                        box.DistBillboard.Enabled = true
+                        if box.DistLabel then
+                            box.DistLabel.Text = string.format("[%d m]", distMeter)
+                            box.DistLabel.TextColor3 = textColor
+                        end
                     end
                 end
             else 
-                -- Logika ESP Item (Menggunakan Highlight 3D & Billboard)
                 local targetAdornee = box.TargetAdornee
                 local itemPos = nil
                 if targetAdornee and targetAdornee:IsA("BasePart") then

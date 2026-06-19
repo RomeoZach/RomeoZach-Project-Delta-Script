@@ -142,7 +142,7 @@ local success, err = pcall(function()
 
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 480, 0, 260) 
+    MainFrame.Size = UDim2.new(0, 480, 0, 300) 
     MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
     MainFrame.BackgroundTransparency = 0.15

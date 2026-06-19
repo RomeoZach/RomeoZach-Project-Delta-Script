@@ -1155,6 +1155,7 @@ pcall(function()
         collectgarbage("collect")
     end
 
-Players.PlayerRemoving:Connect(RemoveESP)
-game:BindToClose(PurgeAllGarbageMemory)
-end)
+    Players.PlayerRemoving:Connect(RemoveESP)
+    game:BindToClose(PurgeAllGarbageMemory)
+
+end) -- Pasangan kurung penutup untuk pcall(function() di baris pertama script

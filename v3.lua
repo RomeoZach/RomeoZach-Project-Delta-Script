@@ -1,8 +1,9 @@
 --[[
 ================================================================================
 --|                                                                            |--
---|      PROJECT DELTA V3 PERFECTED - REBUILT & ENHANCED BY GEMINI CODE ASSIST     |--
+--|    PROJECT DELTA V4 - HYBRID ENGINE (GEMINI x REFERENCE.LUA)                 |--
 --|                             Original Author : RomeoZach                      |--
+--|                        ESP Engine Rebuilt by Gemini Code Assist              |--
 --|                                                                            |--
 ================================================================================
 ]]
@@ -145,7 +146,7 @@ pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta SC - Rebuilt"
+    Header.Text = "Project Delta V4 - Hybrid"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -267,7 +268,7 @@ pcall(function()
         if hum then
             if hum.Health <= 0 or hum.Health ~= hum.Health then return true end
             if hum:GetState() == Enum.HumanoidStateType.Dead then return true end
-            return false -- Jika punya humanoid tapi tidak mati, pasti masih hidup
+            return false
         end
         
         local nameLower = string.lower(char.Name)
@@ -300,8 +301,6 @@ pcall(function()
         local targetPos = targetPart.Position
         local direction = targetPos - origin
         
-        -- [FIX DEFINITIF] Jika jarak sangat dekat (di dalam jangkauan melee), anggap target selalu terlihat.
-        -- Ini mencegah bug raycast pada jarak nol yang menyebabkan ESP hilang dan Aimlock mati.
         if direction.Magnitude < 5 then
             return "Visible", ESP_Config.Color
         end
@@ -383,16 +382,43 @@ pcall(function()
 
     --[[
         ================================================
-        --            MODULE 4: ESP MANAGER             --
+        --      MODULE 4: ESP MANAGER (HYBRID ENGINE)     --
         ================================================
     ]]
-    -- // ESP Creation & Management
+    -- // ESP Creation & Management using Drawing Library
+    local function CreateDrawingObjectsForEntity()
+        local drawings = {
+            Box = Drawing.new("Square"),
+            BoxOutline = Drawing.new("Square"),
+            Distance = Drawing.new("Text")
+        }
+        -- Configure default properties
+        drawings.Box.Thickness = 1
+        drawings.Box.Filled = false
+        drawings.BoxOutline.Thickness = 2
+        drawings.BoxOutline.Filled = false
+        drawings.BoxOutline.Color = Color3.new(0,0,0) -- Black outline
+        drawings.Distance.Size = 13
+        drawings.Distance.Center = true
+        drawings.Distance.Outline = true
+        
+        -- Set all to invisible initially
+        for _, d in pairs(drawings) do
+            d.Visible = false
+        end
+        return drawings
+    end
+
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
-            if box.Highlight then box.Highlight:Destroy() end
-            if box.Billboard then box.Billboard:Destroy() end
-            if box.DistBillboard then box.DistBillboard:Destroy() end
+            if box.Drawings then
+                for _, drawing in pairs(box.Drawings) do
+                    drawing:Remove()
+                end
+            end
+            if box.Highlight then box.Highlight:Destroy() end -- For items
+            if box.Billboard then box.Billboard:Destroy() end -- For items
             if box.Connection then box.Connection:Disconnect() end
             ESP_Objects[entity] = nil
         end
@@ -401,48 +427,24 @@ pcall(function()
     local function CreateESP(entity, isPlayer)
         if isPlayer and entity == LocalPlayer then return end
         if ESP_Objects[entity] then return end
-        local box = {Highlight = nil, DistBillboard = nil, DistLabel = nil, Connection = nil}
+
+        local box = {
+            Drawings = CreateDrawingObjectsForEntity(),
+            Connection = nil,
+            CanBeAimlocked = false,
+            IsHelicopter = false,
+        }
         
-        local function ApplyVisuals(char)
+        local function ApplyCharacter(char)
             if not char then return end
-            
-            if box.Highlight then box.Highlight:Destroy(); box.Highlight = nil end
-            if box.DistBillboard then box.DistBillboard:Destroy(); box.DistBillboard = nil end
-
-            box.TargetAdornee = char
-            
-            -- [FIX] Lakukan pengecekan visibilitas awal saat ESP dibuat untuk warna yang akurat sejak frame pertama.
-            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
-            local initialVisStatus, initialVisColor = "Blocked", COLOR_BLOCKED
-            if rootPart then
-                initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
-            end
-            
-            local hl = char:FindFirstChildOfClass("Highlight") or Instance.new("Highlight", char)
-            -- Gunakan warna awal yang sudah dicek, bukan warna default.
-            hl.FillColor = initialVisColor; hl.FillTransparency = 0.5; hl.OutlineColor = initialVisColor; hl.OutlineTransparency = 0; hl.Adornee = char; box.Highlight = hl
-            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-            -- Distance Billboard
-            local distBb = Instance.new("BillboardGui", char)
-            distBb.Name = "RomeoZach_DistBillboard"; distBb.Size = UDim2.new(0, 200, 0, 50); distBb.AlwaysOnTop = true
-            distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LeftFoot")
-            distBb.StudsOffset = Vector3.new(0, -4.5, 0)
-            box.DistBillboard = distBb
-            
-            local distTxt = Instance.new("TextLabel", distBb)
-            distTxt.Size = UDim2.new(1, 0, 1, 0); distTxt.BackgroundTransparency = 1;
-            -- Gunakan juga warna awal untuk teks jarak.
-            distTxt.Text = ""; distTxt.TextColor3 = initialVisColor; distTxt.TextSize = 10; distTxt.Font = ESP_Config.Font; distTxt.TextStrokeTransparency = 0; box.DistLabel = distTxt
-            distTxt.TextYAlignment = Enum.TextYAlignment.Top
-            Instance.new("UIStroke", distTxt).Thickness = 1.5
+            box.Character = char
         end
         
         if isPlayer then 
-            if entity.Character then ApplyVisuals(entity.Character) end
-            box.Connection = entity.CharacterAdded:Connect(ApplyVisuals) 
+            if entity.Character then ApplyCharacter(entity.Character) end
+            box.Connection = entity.CharacterAdded:Connect(ApplyCharacter) 
         else 
-            ApplyVisuals(entity) 
+            ApplyCharacter(entity) 
         end
         ESP_Objects[entity] = box
     end
@@ -466,7 +468,6 @@ pcall(function()
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
-        -- 1. PENGETATAN SENSOR ENTITAS HIDUP
         if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") and not obj:FindFirstChild("FakeTorso") then
             return false
         end
@@ -557,7 +558,6 @@ pcall(function()
             end
         end
         if ESP_Config.FindEquipment then
-            -- Database armor, tas, dan visor kasta tertinggi hasil riset ingame (Huruf kecil semua, tanpa tanda %)
             local equipKeywords = {
                 "juggernaut", "hspv", "tactical", "6b45", "kulon", "concealed", 
                 "attak", "tortilla", "titan", "low cut", "fast mt", "quad", 
@@ -606,7 +606,6 @@ pcall(function()
             local lpChar = LocalPlayer.Character
             if not lpChar then isEntityScanning = false; continue end
 
-            -- 1. Player Scan (Pemain Asli)
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and not ESP_Objects[p] then CreateESP(p, true) end
             end
@@ -696,7 +695,6 @@ pcall(function()
             isItemScanning = true
             if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; continue end
 
-            -- C. Containers Scan
             local containersFolder = workspace:FindFirstChild("Containers")
             if containersFolder and ESP_Config.ESP_Containers then
                 for _, obj in ipairs(containersFolder:GetChildren()) do
@@ -747,7 +745,6 @@ pcall(function()
             end
             task.wait()
 
-            -- D. Loose Items Scan
             local droppedItemsFolder = workspace:FindFirstChild("DroppedItems")
             if droppedItemsFolder and ESP_Config.ESP_Loot then
                 for _, obj in ipairs(droppedItemsFolder:GetChildren()) do
@@ -935,67 +932,124 @@ pcall(function()
                 continue
             end
             
-            local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
+            local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
+            local function HideDrawings()
+                box.CanBeAimlocked = false
+                if box.Drawings then
+                    for _, d in pairs(box.Drawings) do
+                        d.Visible = false
+                    end
+                end
+                if box.Highlight then box.Highlight.Enabled = false end
+                if box.Billboard then box.Billboard.Enabled = false end
+            end
+
+            if not char or not char.Parent or char == lpChar then
+                HideDrawings()
+                continue
+            end
+
             local isDead = IsEntityDead(char)
             local isItem = box.IsContainer or box.IsLooseItem
             if isDead then isItem = false end
+            
             local shouldProcess = (not isItem and not isDead and ESP_Config.ESP_Players) or (isDead and ESP_Config.ESP_Corpses) or (box.IsContainer and ESP_Config.ESP_Containers) or (box.IsLooseItem and ESP_Config.ESP_Loot)
-            if shouldProcess and char and not isItem and char ~= lpChar then
-                local rootPart = char:IsA("BasePart") and char or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
-                if isDead and not rootPart and char then rootPart = char:FindFirstChildWhichIsA("BasePart", true) or char end
-                if rootPart then
-                    local rootPos = rootPart:IsA("BasePart") and rootPart.Position or rootPart:GetPivot().Position
-                    local studsDist = (cameraPos - rootPos).Magnitude
-                    local distMeter = math.floor(studsDist / 3.571428)
-                    local shouldRender = false
-                    if isDead then
-                        shouldRender = (studsDist <= 357)
-                    else
-                        local isPlayerChar = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
-                        shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
-                    end
-                    if shouldRender then
-                        local finalColor
-                        if isDead then
-                            finalColor = COLOR_DEAD
-                            box.CanBeAimlocked = false
-                        else
-                            local visStatus, visColor = checkTargetVisibility(rootPart, char)
-                            finalColor = visColor
-                            box.CanBeAimlocked = (visStatus == "Visible")
-                        end
-                        if box.Highlight then
-                            box.Highlight.Enabled = true; box.Highlight.FillColor = finalColor; box.Highlight.OutlineColor = finalColor
-                            if box.Highlight.Parent ~= box.TargetAdornee then box.Highlight.Parent = box.TargetAdornee end
-                        end
-                        if box.DistBillboard then
-                            box.DistBillboard.Enabled = not (isDead or box.IsHelicopter)
-                            if box.DistBillboard.Enabled and box.DistLabel then
-                                box.DistLabel.Text = string.format("[%d m]", distMeter)
-                                box.DistLabel.TextColor3 = finalColor
-                            end
-                            if box.DistBillboard.Adornee ~= rootPart then box.DistBillboard.Adornee = rootPart end
-                        end
-                    else
-                        box.CanBeAimlocked = false
-                        if box.Highlight then box.Highlight.Enabled = false end
-                        if box.DistBillboard then box.DistBillboard.Enabled = false end
-                    end
+
+            if not shouldProcess then
+                HideDrawings()
+                continue
+            end
+
+            if not isItem then
+                local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
+                if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
+
+                if not rootPart then
+                    HideDrawings()
+                    continue
                 end
-            elseif shouldProcess and isItem then
-                box.CanBeAimlocked = false
+
+                local rootPos = rootPart.Position
+                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
+
+                if not onScreen then
+                    HideDrawings()
+                    continue
+                end
+
+                local studsDist = (cameraPos - rootPos).Magnitude
+                local distMeter = math.floor(studsDist / 3.571428)
+
+                local shouldRender = false
+                if isDead then
+                    shouldRender = (studsDist <= 357)
+                else
+                    local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
+                    shouldRender = (isPlayerChar and studsDist <= 3150) or (not isPlayerChar and studsDist <= 1575)
+                end
+
+                if not shouldRender then
+                    HideDrawings()
+                    continue
+                end
+
+                local headPart = char:FindFirstChild("Head")
+                local footPart = char:FindFirstChild("HumanoidRootPart")
+                if not headPart or not footPart then
+                    HideDrawings()
+                    continue
+                end
+
+                local headScreen, onScreenHead = Camera:WorldToViewportPoint(headPart.Position)
+                local footScreen, onScreenFoot = Camera:WorldToViewportPoint(footPart.Position - Vector3.new(0, 3, 0))
+
+                if not (onScreenHead and onScreenFoot) then
+                    HideDrawings()
+                    continue
+                end
+
+                local height = math.abs(headScreen.Y - footScreen.Y)
+                local width = height / 1.8
+                local boxPos = Vector2.new(headScreen.X - width / 2, headScreen.Y)
+                local boxSize = Vector2.new(width, height)
+
+                local finalColor
+                if isDead then
+                    finalColor = COLOR_DEAD
+                    box.CanBeAimlocked = false
+                else
+                    local visStatus, visColor = checkTargetVisibility(rootPart, char)
+                    finalColor = visColor
+                    box.CanBeAimlocked = (visStatus == "Visible")
+                end
+
+                box.Drawings.Box.Visible = true
+                box.Drawings.Box.Color = finalColor
+                box.Drawings.Box.Position = boxPos
+                box.Drawings.Box.Size = boxSize
+                
+                box.Drawings.BoxOutline.Visible = true
+                box.Drawings.BoxOutline.Position = boxPos
+                box.Drawings.BoxOutline.Size = boxSize
+
+                if not isDead then
+                    box.Drawings.Distance.Visible = true
+                    box.Drawings.Distance.Color = finalColor
+                    box.Drawings.Distance.Text = string.format("[%d m]", distMeter)
+                    box.Drawings.Distance.Position = Vector2.new(boxPos.X + boxSize.X / 2, boxPos.Y + boxSize.Y + 5)
+                else
+                    box.Drawings.Distance.Visible = false
+                end
+            else -- This is for items
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then continue end
+                if not itemPos then HideDrawings(); continue end
+                
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
+                
                 if box.Highlight then box.Highlight.Enabled = inRange and (not box.IsContainer or (box.HasLoot and studsDist >= 4)) end
                 if box.Billboard then box.Billboard.Enabled = inRange and box.IsLooseItem end
-            else
-                box.CanBeAimlocked = false
-                if box.Highlight then box.Highlight.Enabled = false end
-                if box.Billboard then box.Billboard.Enabled = false end
-                if box.DistBillboard then box.DistBillboard.Enabled = false end
             end
         end
 
@@ -1050,12 +1104,7 @@ pcall(function()
     local function PurgeAllGarbageMemory()
         RunService:UnbindFromRenderStep("RomeoZach_Render")
         for entity, box in pairs(ESP_Objects) do
-            pcall(function()
-                if box.Highlight then box.Highlight:Destroy() end
-                if box.Billboard then box.Billboard:Destroy() end
-                if box.DistBillboard then box.DistBillboard:Destroy() end
-                if box.Connection then box.Connection:Disconnect() end
-            end)
+            RemoveESP(entity)
         end
         table.clear(ESP_Objects)
         table.clear(ignoreList)

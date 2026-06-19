@@ -1,7 +1,7 @@
+-- LogService interceptor dibiarkan sebagai referensi, namun tidak akan memblokir error server dari console.
 local LogService = game:GetService("LogService")
 LogService.MessageOut:Connect(function(message, messageType)
     if message:find("TimeLabel") or message:find("GameplayVariables") or message:find("TargetAttachment") then
-        -- Paksa hapus dan bungkam pesan dari antrean console agar CPU tidak lag
         return
     end
 end)
@@ -10,12 +10,12 @@ end)
     ================================================================================
     --|                                                                            |--
     --|           PROJECT DELTA V8 ULTIMATE - REBUILT & MODULARIZED                |--
-    --|                             Author  : RomeoZach                            |--
+    --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
 ]]
 
-pcall(function()
+local success, err = pcall(function()
 
     --[[
         ================================================
@@ -45,9 +45,9 @@ pcall(function()
         BulletTracers = false,
         Crosshair = false,
         VisCheck = true,
-        GunMods = false, -- No Recoil & No Spread
-        FindWeapons = false, -- Item Finder for Guns
-        FindValuables = false, -- Item Finder for Valuables
+        GunMods = false, 
+        FindWeapons = false, 
+        FindValuables = false, 
         FindKeys = false,
         FindAttachments = false,
         PerformanceMode = false,
@@ -62,8 +62,8 @@ pcall(function()
 
     -- // ESP Theme Colors
     local COLOR_VISIBLE = ESP_Config.Color
-    local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165) -- Gray
-    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- Ungu Plum
+    local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165) 
+    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) 
 
     -- // Runtime Tables
     local ESP_Objects = {}
@@ -73,7 +73,7 @@ pcall(function()
     local WeaponConnections = {}
     local ActiveBulletTracers = {}
     local CrosshairLines = {}
-    local AmmoBackups = {} -- For Gun Mods
+    local AmmoBackups = {} 
     local TextureBackups = {}
     local LightingBackups = {
         GlobalShadows = Lighting.GlobalShadows,
@@ -102,9 +102,10 @@ pcall(function()
     sharedRaycastParams.IgnoreWater = true
     local ignoreList = {}
 
-    -- // UI Framework (Rebuilt - 2 Column Layout)
-    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
-    local oldUi = PlayerGui:FindFirstChild("RomeoZach_Ui")
+    -- // UI Framework (Rebuilt - Menggunakan targetGui agar aman dari anti-cheat)
+    local targetGui = (gethui and gethui()) or game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui", 15)
+    
+    local oldUi = targetGui:FindFirstChild("RomeoZach_Ui")
     if oldUi then
         pcall(function() oldUi:Destroy() end)
         task.wait(0.2)
@@ -115,7 +116,7 @@ pcall(function()
     RomeoZachGui.ResetOnSpawn = false
     RomeoZachGui.DisplayOrder = 999999
     RomeoZachGui.IgnoreGuiInset = true
-    RomeoZachGui.Parent = PlayerGui
+    RomeoZachGui.Parent = targetGui
 
     -- // Crosshair Framework
     local chX = Instance.new("Frame", RomeoZachGui)
@@ -157,7 +158,7 @@ pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V5 - Final"
+    Header.Text = "Project Delta V8 - Final"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -242,7 +243,7 @@ pcall(function()
 
     --[[
         ================================================
-        --          MODULE 2: INPUT & UTILITIES           --
+        --        MODULE 2: INPUT & UTILITIES           --
     ]]
     -- // Input Handling
     UserInputService.InputBegan:Connect(function(input, gp)
@@ -301,7 +302,7 @@ pcall(function()
 
     --[[
         ================================================
-        --         MODULE 3: VISIBILITY ENGINE          --
+        --        MODULE 3: VISIBILITY ENGINE         --
         ================================================
     ]]
     -- // Core Systems
@@ -356,27 +357,18 @@ pcall(function()
         local origin = Camera.CFrame.Position
         
         for entity, box in pairs(ESP_Objects) do
-            -- [REVISI] Menghapus 'if not box.CanBeAimlocked then continue end' untuk mencegah Aimlock macet.
-
             local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             if char and char ~= LocalPlayer.Character and char.Parent then
-                -- [REVISI] Memaksa pencarian part ke kepala
                 local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
                 if head and not IsEntityDead(char) then
-                    -- [REVISI] Pengecekan visibilitas langsung di dalam fungsi
                     local visStatus, _, _ = checkTargetVisibility(head, char)
                     if visStatus ~= "Visible" then
+                        continue -- Lewati jika target tidak terlihat agar aimlock tidak nyangkut
                     end
 
                     local studsDist = (origin - head.Position).Magnitude
-                    
                     local isPlayer = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
-                    if isPlayer and studsDist > 3150 then 
-                    end
-                    if not isPlayer and studsDist > 1575 then 
-                    end
                     
-                    -- [KALIBRASI] Formula disamakan persis dengan Aimlock Logic di Render Loop
                     local bulletSpeed = GetBulletSpeed()
                     if bulletSpeed <= 0 then bulletSpeed = 1500 end
                     local timeToTarget = studsDist / bulletSpeed
@@ -402,10 +394,9 @@ pcall(function()
 
     --[[
         ================================================
-        --      MODULE 4: ESP MANAGER (REVISED)           --
+        --      MODULE 4: ESP MANAGER (REVISED)       --
         ================================================
     ]]
-    -- // ESP Creation & Management using a Single, Reliable Highlight
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
@@ -434,10 +425,9 @@ pcall(function()
         local function ApplyVisuals(char)
             if not char then return end
             
-            -- [REVISI] Tambahkan delay untuk menangani re-streaming AI
             if not isPlayer then
                 task.wait(0.5)
-                if not char or not char.Parent then return end -- Verifikasi ulang setelah delay
+                if not char or not char.Parent then return end 
             end
 
             if box.Highlight then box.Highlight:Destroy() end
@@ -451,7 +441,6 @@ pcall(function()
                 initialVisStatus, initialVisColor = checkTargetVisibility(rootPart, char)
             end
 
-            -- [REVISI] Hanya menggunakan SATU highlight yang menempel pada seluruh model
             local hl = Instance.new("Highlight", char)
             hl.FillColor = initialVisColor
             hl.OutlineColor = initialVisColor
@@ -487,10 +476,9 @@ pcall(function()
 
     --[[
         ================================================
-        --         MODULE 5: SCANNER UTILITIES          --
+        --        MODULE 5: SCANNER UTILITIES         --
         ================================================
     ]]
-    -- // Entity Scanner (Player, AI, Items)
     local function IsValidEntity(obj)
         if not obj:IsA("Model") then return false end
         if obj.Name == LocalPlayer.Name or (LocalPlayer.Character and obj == LocalPlayer.Character) then return false end
@@ -504,11 +492,7 @@ pcall(function()
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
-        -- [PERBAIKAN KRITIS] Mengadopsi filter super ketat dari V1 yang terbukti stabil.
-        -- Ini adalah kunci utama untuk mencegah crash saat kompilasi/eksekusi.
         if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
-            -- Pengecualian hanya diberikan untuk mayat/ragdoll, yang akan divalidasi lebih lanjut oleh IsEntityDead.
-            -- Jika tidak punya baju DAN bukan mayat, ini 100% objek map dan harus diblokir.
             if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then
                 return false
             end
@@ -520,7 +504,6 @@ pcall(function()
         end
 
         if obj:FindFirstChildOfClass("Tool") then return true end
-        
         if obj:FindFirstChildOfClass("Humanoid") then return true end
         if obj:FindFirstChild("Head") and (obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("UpperTorso")) then return true end
         
@@ -547,7 +530,6 @@ pcall(function()
                 "svd", "pkm", "r700", "remington", "tfz", "mod-98", "mod98", "rpg-7", "rpg7", 
                 "akmn", "saiga", "flare", "flaregun", "spsh-44", "spsh44"
             }
-            
             for _, kw in ipairs(weaponKeywords) do
                 local escapedKw = kw:gsub("%-", "%%-")
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then 
@@ -571,7 +553,6 @@ pcall(function()
                 "ruble", "rubles", "cash", "money",
                 "nvg", "goggles", "reap-ir", "reapir", "thermal", "onv-9", "onv9", "quadnvg", "quad"
             }
-            
             for _, kw in ipairs(valuableKeywords) do 
                 local escapedKw = kw:gsub("%-", "%%-")
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then return true, desc.Name end
@@ -588,36 +569,11 @@ pcall(function()
                 if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then return true, desc.Name end
             end
         end
-        if ESP_Config.FindAttachments then
-            local attachmentKeywords = {
-                "lpvo", "rifle scope", "reap-ir", "reapir", "holographic", "acog", 
-                "laser pointer", "peq-15", "peq15", "socom556", "rc2", 
-                "muzzle brake", "pbs-1", "pbs1"
-            }
-            for _, kw in ipairs(attachmentKeywords) do 
-                local escapedKw = kw:gsub("%-", "%%-")
-                if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then return true, desc.Name end
-            end
-        end
-        if ESP_Config.FindEquipment then
-            local equipKeywords = {
-                "juggernaut", "hspv", "tactical", "6b45", "kulon", "concealed", 
-                "attak", "tortilla", "titan", "low cut", "fast mt", "quad", 
-                "altyn helmet", "maska", "tor-s", "zsh", "crown", "atlyn", "mount", "headset"
-            }
-            
-            for _, kw in ipairs(equipKeywords) do 
-                local escapedKw = kw:gsub("%-", "%%-")
-                if nLower == kw or nLower:match("%f[%w]"..escapedKw.."%f[%W]") then 
-                    return true, desc.Name 
-                end
-            end
-        end
         return false, nil
     end
 
     local function checkContainerLoot(container)
-        if not (ESP_Config.FindWeapons or ESP_Config.FindValuables or ESP_Config.FindKeys or ESP_Config.FindAttachments or ESP_Config.FindEquipment) then return false, "" end
+        if not (ESP_Config.FindWeapons or ESP_Config.FindValuables or ESP_Config.FindKeys or ESP_Config.FindAttachments) then return false, "" end
         for _, desc in ipairs(container:GetDescendants()) do
             local isContainerPart = desc.Name:lower():find("mount") or desc.Name:lower():find("keypad") or desc.Name:lower():find("hinge") or desc.Name:lower():find("door") or desc.Name:lower():find("lock") or desc.Name:lower():find("frame") or desc.Name:lower():find("drawer")
             if not isContainerPart then
@@ -634,21 +590,18 @@ pcall(function()
 
     --[[
         ================================================
-        --       MODULE 6: ENTITY SCANNER THREAD        --
+        --       MODULE 6: ENTITY SCANNER THREAD      --
         ================================================
     ]]
     local isEntityScanning = false
 
     task.spawn(function()
         while task.wait(2) do
-            if not ESP_Config.ESP_Players and not ESP_Config.ESP_Corpses then 
-            end
-
-            if isEntityScanning then 
-            end
+            if not ESP_Config.ESP_Players and not ESP_Config.ESP_Corpses then continue end
+            if isEntityScanning then continue end
             isEntityScanning = true
             local lpChar = LocalPlayer.Character
-            if not lpChar then isEntityScanning = false; end
+            if not lpChar then isEntityScanning = false; continue end
 
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and not ESP_Objects[p] then CreateESP(p, true) end
@@ -657,7 +610,6 @@ pcall(function()
 
             local function ScanEntity(obj)
                 local nameLower = obj.Name:lower()
-                
                 if nameLower:find("effect") or nameLower:find("bullet") or nameLower:find("tracer") then return end
                 if nameLower:find("poster") or nameLower:find("decal") or nameLower:find("sign") or nameLower:find("prop") or nameLower:find("static") or nameLower:find("building") or nameLower:find("foliage") then return end
                 if nameLower:find("textlabel") or nameLower:find("uipadding") then return end
@@ -728,16 +680,16 @@ pcall(function()
 
     --[[
         ================================================
-        --         MODULE 7: ITEM SCANNER THREAD        --
+        --        MODULE 7: ITEM SCANNER THREAD       --
         ================================================
     ]]
     local isItemScanning = false
 
     task.spawn(function()
         while task.wait(2) do
-            if isItemScanning then end
+            if isItemScanning then continue end
             isItemScanning = true
-            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; end
+            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; continue end
 
             local containersFolder = workspace:FindFirstChild("Containers")
             if containersFolder and ESP_Config.ESP_Containers then
@@ -840,9 +792,39 @@ pcall(function()
 
     --[[
         ================================================
-        --       MODULE 8: MISCELLANEOUS SCANNER THREAD     --
+        --     MODULE 8: MISCELLANEOUS SCANNER        --
         ================================================
     ]]
+    local function InitialPerformanceBoost()
+        pcall(function()
+            Lighting.FogEnd = 999999
+            Lighting.FogStart = 999999
+        end)
+        
+        for _, obj in ipairs(Lighting:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("Atmosphere") then obj.Density = 0 elseif obj:IsA("Clouds") then obj.Enabled = false end
+            end)
+        end
+
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("rain") then
+                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+                    pcall(function() obj.Enabled = false end)
+                elseif obj:IsA("Sound") then
+                    pcall(function() obj.Volume = 0 end)
+                end
+            end
+        end
+
+        pcall(function()
+            workspace.Terrain.Decoration = false
+            LightingBackups.Decoration = false
+        end)
+    end
+
+    InitialPerformanceBoost()
+
     task.spawn(function()
         while task.wait(3) do
             local ammoTypes = game.ReplicatedStorage:FindFirstChild("AmmoTypes")
@@ -864,60 +846,18 @@ pcall(function()
             
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
-                InitialPerformanceBoost() -- Panggil lagi untuk memastikan semua bersih
+                InitialPerformanceBoost()
                 
                 if ESP_Config.PerformanceMode then
                     for _, obj in pairs(Lighting:GetDescendants()) do
                         if obj:IsA("PostEffect") or obj:IsA("Clouds") then
-                            if obj.Enabled then
-                                DisabledEffects[obj] = true
-                                obj.Enabled = false
-                            end
+                            if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
                         elseif obj:IsA("Atmosphere") then
                             if not TextureBackups[obj] then TextureBackups[obj] = {Density = obj.Density} end
                             obj.Density = 0
                         end
                     end
-                    
-                    task.spawn(function()
-                        local cnt = 0
-                        local function ScanPerformance(obj)
-                            cnt = cnt + 1
-                            if cnt % 25 == 0 then task.wait() end
-                            
-                            if not obj or obj == workspace.Terrain then return end
-                            
-                            local nameLower = obj.Name:lower()
-                            if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("debris") or nameLower:find("effect") or nameLower == "camera" then return end
-
-                            if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
-                                if nameLower:find("rain") or nameLower:find("snow") or nameLower:find("weather") or nameLower:find("fog") or nameLower:find("storm") or nameLower:find("drop") then
-                                    if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
-                                    if obj:IsA("ParticleEmitter") then obj:Clear() end
-                                end
-                            elseif obj:IsA("Sound") then
-                                if nameLower:find("rain") or nameLower:find("storm") or nameLower:find("weather") or nameLower:find("thunder") then
-                                    if not TextureBackups[obj] then TextureBackups[obj] = {Volume = obj.Volume} end
-                                    obj.Volume = 0
-                                end
-                            elseif obj:IsA("BasePart") then
-                                if not TextureBackups[obj] then TextureBackups[obj] = {Material = obj.Material, CastShadow = obj.CastShadow} end
-                                obj.Material = Enum.Material.SmoothPlastic
-                                obj.CastShadow = false
-                            elseif (obj:IsA("Texture") or obj:IsA("Decal")) and obj.Transparency < 1 then
-                                if not TextureBackups[obj] then TextureBackups[obj] = {Transparency = obj.Transparency} end
-                                obj.Transparency = 1
-                            end
-
-                            for _, child in ipairs(obj:GetChildren()) do
-                                ScanPerformance(child)
-                            end
-                        end
-                        for _, child in ipairs(workspace:GetChildren()) do ScanPerformance(child) end
-                        pcall(function() workspace.Terrain.Decoration = false end)
-                    end)
                 else
-                    -- Mengembalikan ke pengaturan semula
                     Lighting.FogEnd = LightingBackups.FogEnd
                     Lighting.FogStart = LightingBackups.FogStart
                     workspace.Terrain.Decoration = LightingBackups.Decoration
@@ -936,46 +876,9 @@ pcall(function()
         end
     end)
 
-    local function InitialPerformanceBoost()
-        -- NONAKTIFKAN KABUT & AWAN SECARA AMAN
-        pcall(function()
-            Lighting.FogEnd = 999999
-            Lighting.FogStart = 999999
-        end)
-        
-        for _, obj in ipairs(Lighting:GetDescendants()) do
-            pcall(function()
-                if obj:IsA("Atmosphere") then
-                    obj.Density = 0
-                elseif obj:IsA("Clouds") then
-                    obj.Enabled = false
-                end
-            end)
-        end
-
-        -- NONAKTIFKAN HUJAN & SUARA SECARA AMAN
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name:lower():find("rain") then
-                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
-                    pcall(function() obj.Enabled = false end)
-                elseif obj:IsA("Sound") then
-                    pcall(function() obj.Volume = 0 end)
-                end
-            end
-        end
-
-        -- NONAKTIFKAN RUMPUT 3D
-        pcall(function()
-            workspace.Terrain.Decoration = false
-            LightingBackups.Decoration = false
-        end)
-    end
-
-    InitialPerformanceBoost()
-
     --[[
         ================================================
-        --         MODULE 9: RENDER LOOP & AIMLOCK        --
+        --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
     ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
@@ -985,9 +888,10 @@ pcall(function()
         local cameraPos = Camera.CFrame.Position
 
         for entity, box in pairs(ESP_Objects) do
+            -- [PERBAIKAN] Tambahkan continue untuk melompati iterasi yang sudah mati
             if typeof(entity) == "Instance" and not entity.Parent then
                 RemoveESP(entity)
-                
+                continue
             end
             
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
@@ -1002,7 +906,7 @@ pcall(function()
 
             if not char or not char.Parent or char == lpChar then
                 HideVisuals()
-                
+                continue
             end
 
             local isDead = IsEntityDead(char)
@@ -1013,17 +917,16 @@ pcall(function()
 
             if not shouldProcess then
                 HideVisuals()
-                
+                continue
             end
 
             if not isItem then
-                -- BLOK KHUSUS ENTITAS KARAKTER (PLAYER/AI/MAYAT)
                 local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
                 if isDead and not rootPart then rootPart = char:FindFirstChildWhichIsA("BasePart", true) end
 
                 if not rootPart then
                     HideVisuals()
-                    
+                    continue
                 end
 
                 local rootPos = rootPart.Position
@@ -1040,7 +943,7 @@ pcall(function()
 
                 if not shouldRender then
                     HideVisuals()
-                    
+                    continue
                 end
 
                 local finalColor
@@ -1048,7 +951,6 @@ pcall(function()
                     finalColor = COLOR_DEAD
                     box.CanBeAimlocked = false
                 else
-                    -- [REVISI] Logika visibilitas berbasis kepala
                     local targetPart = char:FindFirstChild("Head") or rootPart
                     local visStatus, visColor, _ = checkTargetVisibility(targetPart, char)
                     finalColor = visColor
@@ -1056,21 +958,16 @@ pcall(function()
                 end
 
                 if box.Highlight then
-                    -- [REVISI] Highlight untuk karakter SELALU AKTIF di semua jarak
                     box.Highlight.Enabled = true
                     box.Highlight.FillColor = finalColor
                     box.Highlight.OutlineColor = finalColor
 
-                    -- [REVISI] Solusi Anti-Overlapping Jarak Dekat
                     if studsDist < 7 then
                         box.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        if box.Highlight.Adornee ~= char then
-                            box.Highlight.Adornee = char
-                        end
+                        if box.Highlight.Adornee ~= char then box.Highlight.Adornee = char end
                         box.Highlight.OutlineTransparency = 1
                         box.Highlight.FillTransparency = 0.4
                     else
-                        -- Kembalikan ke setelan normal jika jarak menjauh
                         box.Highlight.OutlineTransparency = 0
                         box.Highlight.FillTransparency = 0.5
                     end
@@ -1084,9 +981,8 @@ pcall(function()
                     end
                 end
             else 
-                -- BLOK KHUSUS LOOT (ITEM/KONTAINER)
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then HideVisuals(); end
+                if not itemPos then HideVisuals(); continue end
                 
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)
@@ -1094,13 +990,12 @@ pcall(function()
                 if box.Highlight_Item then 
                     box.Highlight_Item.Enabled = inRange and (not box.IsContainer or box.HasLoot)
                 end
-                -- [REVISI] Logika jarak dekat HANYA untuk loot
                 if inRange and box.IsContainer and box.HasLoot and studsDist < 7 then
                     box.Highlight_Item.Enabled = false
                 end
                 if box.Billboard_Item then box.Billboard_Item.Enabled = inRange and box.IsLooseItem end
             end
-        end -- Akhir dari loop 'for entity, box in pairs(ESP_Objects) do'
+        end 
 
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
@@ -1113,7 +1008,6 @@ pcall(function()
                         CurrentTargetEntity = potentialTargetEntity; CurrentTargetChar = potentialTargetChar
                         local studsDist = (cameraPos - tHead.Position).Magnitude
                         
-                        -- [KALIBRASI]
                         local bulletSpeed = GetBulletSpeed()
                         if bulletSpeed <= 0 then bulletSpeed = 1500 end
                         local timeToTarget = studsDist / bulletSpeed
@@ -1136,12 +1030,12 @@ pcall(function()
             end
         else
             CurrentTargetEntity = nil; CurrentTargetChar = nil
-        end -- Akhir dari blok 'if ESP_Config.AimLock and IsAiming then'
-    end) -- Akhir dari fungsi 'RunService:BindToRenderStep'
+        end
+    end)
 
     --[[
         ================================================
-        --       MODULE 10: INITIAL CONNECTIONS & MEMORY PURGE      --
+        -- MODULE 10: INITIAL CONNECTIONS & PURGE     --
         ================================================
     ]]
 
@@ -1155,16 +1049,14 @@ pcall(function()
 
     local function PurgeAllGarbageMemory()
         RunService:UnbindFromRenderStep("RomeoZach_Render")
-        for entity, box in pairs(ESP_Objects) do
-            RemoveESP(entity)
-        end
+        for entity, box in pairs(ESP_Objects) do RemoveESP(entity) end
         table.clear(ESP_Objects)
         table.clear(ignoreList)
         table.clear(CrosshairLines)
         CurrentTargetEntity = nil
         CurrentTargetChar = nil
-        if PlayerGui:FindFirstChild("RomeoZach_Ui") then 
-            pcall(function() PlayerGui.RomeoZach_Ui:Destroy() end)
+        if targetGui:FindFirstChild("RomeoZach_Ui") then 
+            pcall(function() targetGui.RomeoZach_Ui:Destroy() end)
         end
         setmetatable(ESP_Objects, nil)
         collectgarbage("collect")
@@ -1173,4 +1065,9 @@ pcall(function()
     Players.PlayerRemoving:Connect(RemoveESP)
     game:BindToClose(PurgeAllGarbageMemory)
 
-end) -- Pasangan kurung penutup untuk pcall(function() di baris pertama script
+end)
+
+-- [PERBAIKAN] Menangkap pesan error jika ekseskusi pcall gagal
+if not success then
+    warn("[Project Delta V8 Error]: " .. tostring(err))
+end

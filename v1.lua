@@ -921,23 +921,38 @@ pcall(function()
     end)
 
     local function InitialPerformanceBoost()
-        -- HAPUS KABUT & AWAN
-        Lighting.FogEnd = 999999
-        Lighting.FogStart = 999999
-        for _, obj in pairs(Lighting:GetDescendants()) do
-            if obj:IsA("Atmosphere") or obj:IsA("Clouds") then
-                pcall(function() obj:Destroy() end)
+        -- NONAKTIFKAN KABUT & AWAN SECARA AMAN
+        pcall(function()
+            Lighting.FogEnd = 999999
+            Lighting.FogStart = 999999
+        end)
+        
+        for _, obj in ipairs(Lighting:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("Atmosphere") then
+                    obj.Density = 0
+                elseif obj:IsA("Clouds") then
+                    obj.Enabled = false
+                end
+            end)
+        end
+
+        -- NONAKTIFKAN HUJAN & SUARA SECARA AMAN
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name:lower():find("rain") then
+                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+                    pcall(function() obj.Enabled = false end)
+                elseif obj:IsA("Sound") then
+                    pcall(function() obj.Volume = 0 end)
+                end
             end
         end
-        -- HAPUS HUJAN & SUARA
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name:lower():find("rain") and (obj:IsA("Sound") or obj:IsA("ParticleEmitter")) then
-                pcall(function() obj.Enabled = false; obj:Destroy() end)
-            end
-        end
-        -- HAPUS RUMPUT 3D
-        workspace.Terrain.Decoration = false
-        LightingBackups.Decoration = false
+
+        -- NONAKTIFKAN RUMPUT 3D
+        pcall(function()
+            workspace.Terrain.Decoration = false
+            LightingBackups.Decoration = false
+        end)
     end
 
     InitialPerformanceBoost()

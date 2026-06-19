@@ -365,13 +365,16 @@ pcall(function()
                 if head and not IsEntityDead(char) then
                     -- [REVISI] Pengecekan visibilitas langsung di dalam fungsi
                     local visStatus, _, _ = checkTargetVisibility(head, char)
-                    if visStatus ~= "Visible" then continue end
+                    if visStatus ~= "Visible" then
+                    end
 
                     local studsDist = (origin - head.Position).Magnitude
                     
                     local isPlayer = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
-                    if isPlayer and studsDist > 3150 then continue end
-                    if not isPlayer and studsDist > 1575 then continue end
+                    if isPlayer and studsDist > 3150 then 
+                    end
+                    if not isPlayer and studsDist > 1575 then 
+                    end
                     
                     -- [KALIBRASI] Formula disamakan persis dengan Aimlock Logic di Render Loop
                     local bulletSpeed = GetBulletSpeed()
@@ -501,9 +504,11 @@ pcall(function()
         
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
-        -- [PERBAIKAN KRITIS] Mengembalikan filter super ketat dari V1. Ini adalah kunci untuk mencegah crash.
+        -- [PERBAIKAN KRITIS] Mengadopsi filter super ketat dari V1 yang terbukti stabil.
+        -- Ini adalah kunci utama untuk mencegah crash saat kompilasi/eksekusi.
         if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
-            -- Pengecualian untuk mayat yang mungkin kehilangan komponen pakaian
+            -- Pengecualian hanya diberikan untuk mayat/ragdoll, yang akan divalidasi lebih lanjut oleh IsEntityDead.
+            -- Jika tidak punya baju DAN bukan mayat, ini 100% objek map dan harus diblokir.
             if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then
                 return false
             end
@@ -636,12 +641,14 @@ pcall(function()
 
     task.spawn(function()
         while task.wait(2) do
-            if not ESP_Config.ESP_Players and not ESP_Config.ESP_Corpses then continue end
+            if not ESP_Config.ESP_Players and not ESP_Config.ESP_Corpses then 
+            end
 
-            if isEntityScanning then continue end
+            if isEntityScanning then 
+            end
             isEntityScanning = true
             local lpChar = LocalPlayer.Character
-            if not lpChar then isEntityScanning = false; continue end
+            if not lpChar then isEntityScanning = false; end
 
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LocalPlayer and p.Character and not ESP_Objects[p] then CreateESP(p, true) end
@@ -728,9 +735,9 @@ pcall(function()
 
     task.spawn(function()
         while task.wait(2) do
-            if isItemScanning then continue end
+            if isItemScanning then end
             isItemScanning = true
-            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; continue end
+            if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then isItemScanning = false; end
 
             local containersFolder = workspace:FindFirstChild("Containers")
             if containersFolder and ESP_Config.ESP_Containers then
@@ -980,7 +987,7 @@ pcall(function()
         for entity, box in pairs(ESP_Objects) do
             if typeof(entity) == "Instance" and not entity.Parent then
                 RemoveESP(entity)
-                continue
+                
             end
             
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
@@ -995,7 +1002,7 @@ pcall(function()
 
             if not char or not char.Parent or char == lpChar then
                 HideVisuals()
-                continue
+                
             end
 
             local isDead = IsEntityDead(char)
@@ -1006,7 +1013,7 @@ pcall(function()
 
             if not shouldProcess then
                 HideVisuals()
-                continue
+                
             end
 
             if not isItem then
@@ -1016,7 +1023,7 @@ pcall(function()
 
                 if not rootPart then
                     HideVisuals()
-                    continue
+                    
                 end
 
                 local rootPos = rootPart.Position
@@ -1033,7 +1040,7 @@ pcall(function()
 
                 if not shouldRender then
                     HideVisuals()
-                    continue
+                    
                 end
 
                 local finalColor
@@ -1079,7 +1086,7 @@ pcall(function()
             else 
                 -- BLOK KHUSUS LOOT (ITEM/KONTAINER)
                 local itemPos = (box.TargetAdornee and box.TargetAdornee:IsA("BasePart") and box.TargetAdornee.Position) or (entity:IsA("BasePart") and entity.Position)
-                if not itemPos then HideVisuals(); continue end
+                if not itemPos then HideVisuals(); end
                 
                 local studsDist = (cameraPos - itemPos).Magnitude
                 local inRange = (studsDist <= 87.5)

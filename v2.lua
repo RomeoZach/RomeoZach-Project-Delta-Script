@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|           PROJECT DELTA V8 ULTIMATE - PURE COMBAT EDITION                  |--
+    --|      PROJECT DELTA V8 ULTIMATE - PURE COMBAT (BALLISTIC EDITION)           |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -47,7 +47,7 @@ local success, err = pcall(function()
 
     local COLOR_VISIBLE = ESP_Config.Color
     local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165)
-    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221)
+    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- FIX: Kembalikan ke Ungu Plum Klasik
     local COLOR_TEAM_VISIBLE = Color3.fromRGB(50, 255, 50)
     local COLOR_TEAM_BLOCKED = Color3.fromRGB(0, 150, 0)
 
@@ -71,7 +71,6 @@ local success, err = pcall(function()
         FogColor = Lighting.FogColor
     }
 
-    -- KAMUS MATERIAL WALLBANG (DIKEMBALIKAN)
     local WallbangableMaterials = {
         [Enum.Material.Wood] = true,
         [Enum.Material.WoodPlanks] = true,
@@ -148,7 +147,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Pure Combat"
+    Header.Text = "Project Delta V8 - Ballistic Edition"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -256,16 +255,34 @@ local success, err = pcall(function()
     end)
 
     local function GetBulletSpeed()
-        local defaultSpeed = 1500
+        local defaultSpeed = 800
         local char = LocalPlayer.Character
         if not char then return defaultSpeed end
+        
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
-            local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings")
+            local toolName = tool.Name:lower()
+            
+            local pdWeapons = {
+                ["mosin"] = 885, ["m4a1"] = 850, ["akmn"] = 715, ["akm"] = 715,
+                ["ak-74"] = 900, ["as val"] = 295, ["vss"] = 292, ["sks"] = 735,
+                ["svd"] = 830, ["r700"] = 800, ["remington"] = 800, ["fal"] = 840,
+                ["mp5"] = 400, ["ump"] = 285, ["glock"] = 375, ["m9"] = 380,
+                ["mac"] = 355, ["saiga"] = 400, ["pkm"] = 825, ["vector"] = 320
+            }
+            
+            for key, vel in pairs(pdWeapons) do
+                if toolName:find(key) then
+                    defaultSpeed = vel
+                    break
+                end
+            end
+
+            local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings") or tool:FindFirstChild("Stats")
             if settingsModule and settingsModule:IsA("ModuleScript") then
                 local s, data = pcall(require, settingsModule)
                 if s and type(data) == "table" then
-                    return data.BulletSpeed or data.MuzzleVelocity or defaultSpeed
+                    return data.MuzzleVelocity or data.BulletSpeed or defaultSpeed
                 end
             end
         end
@@ -362,7 +379,6 @@ local success, err = pcall(function()
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
             if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
 
-            -- FIX WALLBANG SAPU JAGAT: Mendeteksi Kayu, Kaca, Tenda, dan Kain
             local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
             local mat = raycastResult.Material
             local nameLow = hitInstance.Name:lower()
@@ -415,7 +431,6 @@ local success, err = pcall(function()
             if char and char ~= LocalPlayer.Character and char.Parent then
                 if IsTeammate(char) or IsEntityDead(char) then continue end
                 
-                -- Jika tidak bisa di-lock dari data background thread, skip!
                 if not box.CanLock then continue end
 
                 local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
@@ -460,10 +475,12 @@ local success, err = pcall(function()
             Highlight = nil,
             DistBillboard = nil,
             DistLabel = nil,
+            BoxFrame = nil,
+            BoxStroke = nil,
             Connection = nil,
             VisStatus = "Visible",
             CanLock = true,
-            HasBeenLooted = false -- FLAG "Loot & Forget"
+            HasBeenLooted = false
         }
         
         local function ApplyVisuals(char)
@@ -479,6 +496,7 @@ local success, err = pcall(function()
             box.Character = char
             box.HasBeenLooted = false
 
+            -- HIGHLIGHT (Hanya digunakan saat HIDUP)
             local hl = Instance.new("Highlight")
             hl.FillColor = COLOR_VISIBLE
             hl.OutlineColor = COLOR_VISIBLE
@@ -489,17 +507,32 @@ local success, err = pcall(function()
             hl.Parent = char
             box.Highlight = hl
             
+            -- BILLBOARD GUI (Diperbaiki agar kebal bayangan/cahaya map)
             local distBb = Instance.new("BillboardGui")
             distBb.Name = "RomeoZach_DistBillboard"
-            distBb.Size = UDim2.new(0, 200, 0, 50)
+            distBb.Size = UDim2.new(4, 0, 5.5, 0)
             distBb.AlwaysOnTop = true
-            distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("LeftFoot") or char:FindFirstChildWhichIsA("BasePart", true)
-            distBb.StudsOffset = Vector3.new(0, -4.5, 0)
+            distBb.LightInfluence = 0 -- FIX: Kotak & teks akan menyala / tidak gelap di area gelap
+            distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+            distBb.StudsOffset = Vector3.new(0, 0, 0)
             distBb.Parent = char
             box.DistBillboard = distBb
             
+            -- KOTAK 2D (Khusus Mayat)
+            local boxFrame = Instance.new("Frame", distBb)
+            boxFrame.Size = UDim2.new(1, 0, 1, -20)
+            boxFrame.BackgroundTransparency = 1
+            boxFrame.Visible = false
+            local boxStroke = Instance.new("UIStroke", boxFrame)
+            boxStroke.Thickness = 1.5
+            boxStroke.Color = COLOR_DEAD
+            box.BoxFrame = boxFrame
+            box.BoxStroke = boxStroke
+
+            -- TEKS JARAK
             local distTxt = Instance.new("TextLabel", distBb)
-            distTxt.Size = UDim2.new(1, 0, 1, 0)
+            distTxt.Size = UDim2.new(1, 0, 0, 20)
+            distTxt.Position = UDim2.new(0, 0, 1, -20)
             distTxt.BackgroundTransparency = 1
             distTxt.Text = ""
             distTxt.TextColor3 = COLOR_VISIBLE
@@ -739,7 +772,6 @@ local success, err = pcall(function()
         local cameraPos = Camera.CFrame.Position
 
         for entity, box in pairs(ESP_Objects) do
-            -- Jika sudah di "Loot & Forget", langsung lewati proses render sepenuhnya!
             if box.HasBeenLooted then continue end
 
             if typeof(entity) == "Instance" and not entity.Parent then
@@ -753,6 +785,9 @@ local success, err = pcall(function()
                 if box.Highlight then 
                     box.Highlight.FillTransparency = 1
                     box.Highlight.OutlineTransparency = 1
+                end
+                if box.BoxFrame and box.BoxFrame.Visible then
+                    box.BoxFrame.Visible = false
                 end
                 if box.DistBillboard and box.DistBillboard.Enabled then 
                     box.DistBillboard.Enabled = false 
@@ -778,11 +813,17 @@ local success, err = pcall(function()
                 continue
             end
 
-            local rootPart = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart", true)
+            -- FIX: PELACAK TULANG CADANGAN (Agar kotak tidak hilang saat root part ragdoll terhapus)
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
 
             if not rootPart then
                 HideVisuals()
                 continue
+            end
+
+            -- Update Adornee secara live jika bagian tubuh sebelumnya hilang
+            if box.DistBillboard and (not box.DistBillboard.Adornee or not box.DistBillboard.Adornee.Parent) then
+                box.DistBillboard.Adornee = rootPart
             end
 
             local rootPos = rootPart.Position
@@ -791,10 +832,9 @@ local success, err = pcall(function()
             local distMeter = math.floor(studsDist / 3.571428)
             local isCloseRange = (studsDist <= 3.57)
 
-            -- FIX RENTANG JARAK MUTLAK
             local shouldRender = false
             if isDead then
-                shouldRender = (studsDist <= 357.14) -- Mayat: 100m
+                shouldRender = (studsDist <= 267.85) -- 75 Meter
             else
                 local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
                 if isPlayerChar then
@@ -809,7 +849,7 @@ local success, err = pcall(function()
                 continue
             end
 
-            -- SISTEM LOOT & FORGET (HANCURKAN ESP MAYAT SECARA PERMANEN SAAT DIDEKATI)
+            -- LOOT & FORGET: Hancurkan otomatis saat dipijak
             if isDead and isCloseRange then
                 box.HasBeenLooted = true
                 if box.Highlight then box.Highlight:Destroy(); box.Highlight = nil end
@@ -817,23 +857,49 @@ local success, err = pcall(function()
                 continue
             end
 
-            local finalColor = COLOR_BLOCKED
-            local textColor = COLOR_BLOCKED
-            local isTeam = false
-            
             if isDead then
-                finalColor = COLOR_DEAD
-                if box.DistBillboard and box.DistBillboard.Enabled then 
-                    box.DistBillboard.Enabled = false 
+                if box.Highlight then 
+                    box.Highlight:Destroy()
+                    box.Highlight = nil 
+                end
+                
+                if box.DistBillboard then
+                    if not box.DistBillboard.Enabled then box.DistBillboard.Enabled = true end
+                    if box.BoxFrame and not box.BoxFrame.Visible then box.BoxFrame.Visible = true end
+                    if box.DistLabel then
+                        box.DistLabel.Text = string.format("[ Corpse: %d m ]", distMeter)
+                        box.DistLabel.TextColor3 = COLOR_DEAD
+                    end
                 end
             else
-                isTeam = IsTeammate(char)
+                local isTeam = IsTeammate(char)
+                local finalColor = COLOR_BLOCKED
+                local textColor = COLOR_BLOCKED
+                
                 if isTeam then
                     finalColor = ESP_Config.Color
                     textColor = (box.VisStatus == "Blocked") and COLOR_TEAM_BLOCKED or COLOR_TEAM_VISIBLE
                 else
                     finalColor = (box.VisStatus == "Visible") and COLOR_VISIBLE or COLOR_BLOCKED
                     textColor = finalColor
+                end
+                
+                if box.BoxFrame and box.BoxFrame.Visible then
+                    box.BoxFrame.Visible = false
+                end
+
+                if box.Highlight then
+                    if isCloseRange then
+                        box.Highlight.FillTransparency = 1
+                        box.Highlight.OutlineTransparency = 1
+                    else
+                        box.Highlight.FillTransparency = 0.5
+                        box.Highlight.OutlineTransparency = 0
+                        if box.Highlight.FillColor ~= finalColor then
+                            box.Highlight.FillColor = finalColor
+                            box.Highlight.OutlineColor = finalColor
+                        end
+                    end
                 end
 
                 if box.DistBillboard then
@@ -844,24 +910,9 @@ local success, err = pcall(function()
                     end
                 end
             end
-
-            -- RENDER VISUAL (HANYA MEMAINKAN TRANSPARANSI JIKA BUKAN MAYAT DEKAT)
-            if box.Highlight then
-                if isCloseRange then
-                    box.Highlight.FillTransparency = 1
-                    box.Highlight.OutlineTransparency = 1
-                else
-                    box.Highlight.FillTransparency = 0.5
-                    box.Highlight.OutlineTransparency = 0
-                    if box.Highlight.FillColor ~= finalColor then
-                        box.Highlight.FillColor = finalColor
-                        box.Highlight.OutlineColor = finalColor
-                    end
-                end
-            end
         end 
 
-        -- // Aimlock Logic (Fisika Realistis Anti-Lag)
+        -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
             if potentialTargetChar then
@@ -877,7 +928,6 @@ local success, err = pcall(function()
                     local bulletSpeed = GetBulletSpeed()
                     if bulletSpeed <= 0 then bulletSpeed = 800 end 
                     
-                    -- FISIKA MUTLAK: Konversi m/s ke studs/s
                     local bulletSpeedStuds = bulletSpeed * 3.571428
                     local timeToTarget = studsDist / bulletSpeedStuds
                     
@@ -886,7 +936,6 @@ local success, err = pcall(function()
                     
                     local dropCompensation = 0
                     if not ESP_Config.GunMods then
-                        -- FISIKA MUTLAK: Gravitasi Riil (35) untuk Akurasi >200m
                         dropCompensation = (0.5 * 35 * (timeToTarget * timeToTarget))
                     end
                     

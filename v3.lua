@@ -324,7 +324,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
+--[[
         ================================================
         --        MODULE 3: VISIBILITY ENGINE         --
         ================================================
@@ -361,12 +361,16 @@ local success, err = pcall(function()
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
             if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
 
-            -- FIX INVISIBLE HITBOX: Jika transparan 100% atau tidak cancollide, tembus terus!
             local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
             local mat = raycastResult.Material
             local nameLow = hitInstance.Name:lower()
-            local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore")
-            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage
+            local parentNameLow = hitInstance.Parent and hitInstance.Parent.Name:lower() or ""
+            
+            -- FIX TENDA & KAIN: Tambahan kata kunci penembus dinding
+            local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
+            local isParentFoliage = parentNameLow:find("tent") or parentNameLow:find("fabric") or parentNameLow:find("canvas") or parentNameLow:find("cloth") or parentNameLow:find("net") or parentNameLow:find("camo")
+            
+            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isParentFoliage
             
             if wallbang then
                 table.insert(ignoreList, hitInstance)
@@ -751,8 +755,8 @@ local success, err = pcall(function()
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
             local function HideVisuals()
-                -- KOREKSI FATAL: Gunakan Transparansi, JANGAN PERNAH gunakan Enabled = false pada Highlight!
-                if box.Highlight and box.Highlight.FillTransparency ~= 1 then 
+                -- 1000% HANYA TRANSPARANSI. TIDAK ADA LAGI ENABLED = FALSE UNTUK HIGHLIGHT!
+                if box.Highlight then 
                     box.Highlight.FillTransparency = 1
                     box.Highlight.OutlineTransparency = 1
                 end
@@ -793,12 +797,17 @@ local success, err = pcall(function()
             local distMeter = math.floor(studsDist / 3.571428)
             local isCloseRange = (studsDist <= 3.57)
 
+            -- FIX RENTANG JARAK MUTLAK
             local shouldRender = false
             if isDead then
-                shouldRender = (studsDist <= 357.14)
+                shouldRender = (studsDist <= 357.14) -- Mayat: 100m
             else
                 local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
-                shouldRender = isPlayerChar and (studsDist <= 3571.4) or (studsDist <= 1607.1)
+                if isPlayerChar then
+                    shouldRender = (studsDist <= 3571.4) -- Player: 1000m
+                else
+                    shouldRender = (studsDist <= 1607.1) -- AI: 450m
+                end
             end
 
             if not shouldRender then
@@ -834,23 +843,17 @@ local success, err = pcall(function()
                 end
             end
 
-            -- KOREKSI FATAL: State Checker MURNI Transparansi (Super Mulus, Anti-Glitch)
+            -- REBUILD ESP ANTI-GLITCH
             if box.Highlight then
                 if isCloseRange then
-                    if box.Highlight.FillTransparency ~= 1 then
-                        box.Highlight.FillTransparency = 1
-                        box.Highlight.OutlineTransparency = 1
-                    end
+                    box.Highlight.FillTransparency = 1
+                    box.Highlight.OutlineTransparency = 1
                 else
-                    if box.Highlight.FillTransparency ~= 0.5 then
-                        box.Highlight.FillTransparency = 0.5
-                        box.Highlight.OutlineTransparency = 0
-                    end
-                    -- Update warna hanya jika berubah (Mencegah spam VRAM)
-                    if box.Highlight.FillColor ~= finalColor then
-                        box.Highlight.FillColor = finalColor
-                        box.Highlight.OutlineColor = finalColor
-                    end
+                    -- Selalu tembakkan properti ke 0.5 jika berada di luar batas dekat
+                    box.Highlight.FillTransparency = 0.5
+                    box.Highlight.OutlineTransparency = 0
+                    box.Highlight.FillColor = finalColor
+                    box.Highlight.OutlineColor = finalColor
                 end
             end
         end 
@@ -871,7 +874,7 @@ local success, err = pcall(function()
                     local bulletSpeed = GetBulletSpeed()
                     if bulletSpeed <= 0 then bulletSpeed = 800 end 
                     
-                    -- Konversi Meter/Detik ke Studs/Detik (Akurasi peluru jarak jauh)
+                    -- Konversi Meter/Detik ke Studs/Detik
                     local bulletSpeedStuds = bulletSpeed * 3.571428
                     local timeToTarget = studsDist / bulletSpeedStuds
                     
@@ -880,7 +883,8 @@ local success, err = pcall(function()
                     
                     local dropCompensation = 0
                     if not ESP_Config.GunMods then
-                        dropCompensation = (0.5 * workspace.Gravity * (timeToTarget * timeToTarget))
+                        -- FIX FISIKA: Menggunakan gravitasi riil (35 studs/s^2), BUKAN gravitasi Roblox (196.2)!
+                        dropCompensation = (0.5 * 35 * (timeToTarget * timeToTarget))
                     end
                     
                     local finalAimPos = targetPos + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
@@ -899,7 +903,7 @@ local success, err = pcall(function()
             CurrentTargetChar = nil
         end
     end)
-
+        
     --[[
         ================================================
         -- MODULE 10: INITIAL CONNECTIONS & PURGE     --

@@ -1157,7 +1157,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
+--[[
         ================================================
         --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
@@ -1189,12 +1189,15 @@ local success, err = pcall(function()
             local function HideVisuals()
                 box.CanBeAimlocked = false
                 if box.Highlight then 
-                    box.Highlight.Enabled = false 
+                    -- PERBAIKAN: Gunakan transparansi penuh, BUKAN .Enabled = false
+                    box.Highlight.FillTransparency = 1
+                    box.Highlight.OutlineTransparency = 1
                 end
                 if box.DistBillboard then 
                     box.DistBillboard.Enabled = false 
                 end
                 if box.Highlight_Item then 
+                    -- Item/Loot tetap aman menggunakan Enabled
                     box.Highlight_Item.Enabled = false 
                 end
                 if box.Billboard_Item then 
@@ -1243,6 +1246,8 @@ local success, err = pcall(function()
                 local directionToTarget = rootPos - cameraPos
                 local studsDist = directionToTarget.Magnitude
                 local distMeter = math.floor(studsDist / 3.571428)
+                
+                -- Deteksi Jarak Dekat (<= 3.57 studs)
                 local isCloseRange = (studsDist <= 3.57)
 
                 local shouldRender = false
@@ -1276,9 +1281,11 @@ local success, err = pcall(function()
                     
                     if box.Highlight then
                         if isCloseRange then
-                            box.Highlight.Enabled = false
+                            -- PERBAIKAN: Mayat dalam jarak dekat menjadi tembus pandang
+                            box.Highlight.FillTransparency = 1
+                            box.Highlight.OutlineTransparency = 1
                         else
-                            box.Highlight.Enabled = true
+                            -- Kembalikan warna ungu plum
                             box.Highlight.FillColor = finalColor
                             box.Highlight.OutlineColor = finalColor
                             box.Highlight.OutlineTransparency = 0
@@ -1313,11 +1320,14 @@ local success, err = pcall(function()
                         box.CanBeAimlocked = canLock
                     end
 
+                    -- Logika Transparansi Anti-Freeze Jarak Dekat
                     if box.Highlight then
                         if isCloseRange then
-                            box.Highlight.Enabled = false
+                            -- PERBAIKAN: Chams badan musuh tembus pandang (Mencegah silau)
+                            box.Highlight.FillTransparency = 1
+                            box.Highlight.OutlineTransparency = 1
                         else
-                            box.Highlight.Enabled = true
+                            -- Rebuild warna dengan instan saat mundur
                             box.Highlight.FillColor = finalColor
                             box.Highlight.OutlineColor = finalColor
                             box.Highlight.OutlineTransparency = 0
@@ -1325,6 +1335,7 @@ local success, err = pcall(function()
                         end
                     end
 
+                    -- Teks jarak WAJIB tetap hidup meskipun Highlight padam di jarak dekat
                     if box.DistBillboard then
                         box.DistBillboard.Enabled = true
                         if box.DistLabel then
@@ -1334,6 +1345,7 @@ local success, err = pcall(function()
                     end
                 end
             else 
+                -- Bagian Item/Loot Scanner
                 local targetAdornee = box.TargetAdornee
                 local itemPos = nil
                 if targetAdornee and targetAdornee:IsA("BasePart") then

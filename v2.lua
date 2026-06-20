@@ -47,7 +47,7 @@ local success, err = pcall(function()
 
     local COLOR_VISIBLE = ESP_Config.Color
     local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165)
-    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- FIX: Kembalikan ke Ungu Plum Klasik
+    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- Ungu Plum Klasik
     local COLOR_TEAM_VISIBLE = Color3.fromRGB(50, 255, 50)
     local COLOR_TEAM_BLOCKED = Color3.fromRGB(0, 150, 0)
 
@@ -291,6 +291,11 @@ local success, err = pcall(function()
 
     local function IsEntityDead(char)
         if not char or typeof(char) ~= "Instance" or not char.Parent then return false end
+        
+        -- FIX CORPSE DETECT: Override via folder name
+        local pName = char.Parent and string.lower(char.Parent.Name) or ""
+        if pName == "ragdolls" or pName == "corpses" or pName == "deadbodies" or pName == "ignore" then return true end
+        
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             if hum.Health <= 0 or hum.Health ~= hum.Health then return true end
@@ -385,9 +390,12 @@ local success, err = pcall(function()
             local parentNameLow = hitInstance.Parent and hitInstance.Parent.Name:lower() or ""
             
             local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
-            local isParentFoliage = parentNameLow:find("tent") or parentNameLow:find("fabric") or parentNameLow:find("canvas") or parentNameLow:find("cloth") or parentNameLow:find("net") or parentNameLow:find("camo")
             
-            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isParentFoliage
+            -- FIX WALLBANG: Bypass Pagar Kayu Plastik
+            local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window")
+            local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall")
+
+            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isWallbangName or isParentWallbang
             
             if wallbang then
                 table.insert(ignoreList, hitInstance)
@@ -496,7 +504,6 @@ local success, err = pcall(function()
             box.Character = char
             box.HasBeenLooted = false
 
-            -- HIGHLIGHT (Hanya digunakan saat HIDUP)
             local hl = Instance.new("Highlight")
             hl.FillColor = COLOR_VISIBLE
             hl.OutlineColor = COLOR_VISIBLE
@@ -507,18 +514,16 @@ local success, err = pcall(function()
             hl.Parent = char
             box.Highlight = hl
             
-            -- BILLBOARD GUI (Diperbaiki agar kebal bayangan/cahaya map)
             local distBb = Instance.new("BillboardGui")
             distBb.Name = "RomeoZach_DistBillboard"
             distBb.Size = UDim2.new(4, 0, 5.5, 0)
             distBb.AlwaysOnTop = true
-            distBb.LightInfluence = 0 -- FIX: Kotak & teks akan menyala / tidak gelap di area gelap
+            distBb.LightInfluence = 0
             distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
             distBb.StudsOffset = Vector3.new(0, 0, 0)
             distBb.Parent = char
             box.DistBillboard = distBb
             
-            -- KOTAK 2D (Khusus Mayat)
             local boxFrame = Instance.new("Frame", distBb)
             boxFrame.Size = UDim2.new(1, 0, 1, -20)
             boxFrame.BackgroundTransparency = 1
@@ -529,7 +534,6 @@ local success, err = pcall(function()
             box.BoxFrame = boxFrame
             box.BoxStroke = boxStroke
 
-            -- TEKS JARAK
             local distTxt = Instance.new("TextLabel", distBb)
             distTxt.Size = UDim2.new(1, 0, 0, 20)
             distTxt.Position = UDim2.new(0, 0, 1, -20)
@@ -564,6 +568,14 @@ local success, err = pcall(function()
         if obj.Name == LocalPlayer.Name or (LocalPlayer.Character and obj == LocalPlayer.Character) then return false end
         if obj:IsDescendantOf(Camera) then return false end
         
+        -- FIX CORPSE DETECT: Jaring sapu jagat folder
+        local pName = obj.Parent and string.lower(obj.Parent.Name) or ""
+        if pName == "ragdolls" or pName == "corpses" or pName == "deadbodies" then 
+            if obj:FindFirstChild("Head") or obj:FindFirstChild("Torso") or obj:FindFirstChild("UpperTorso") or obj:FindFirstChild("HumanoidRootPart") then
+                return true 
+            end
+        end
+
         local nameLower = string.lower(obj.Name)
         if nameLower:find("crate") or nameLower:find("box") or nameLower:find("cache") or nameLower:find("bag") or nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
@@ -813,7 +825,6 @@ local success, err = pcall(function()
                 continue
             end
 
-            -- FIX: PELACAK TULANG CADANGAN (Agar kotak tidak hilang saat root part ragdoll terhapus)
             local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
 
             if not rootPart then
@@ -821,7 +832,6 @@ local success, err = pcall(function()
                 continue
             end
 
-            -- Update Adornee secara live jika bagian tubuh sebelumnya hilang
             if box.DistBillboard and (not box.DistBillboard.Adornee or not box.DistBillboard.Adornee.Parent) then
                 box.DistBillboard.Adornee = rootPart
             end
@@ -830,7 +840,10 @@ local success, err = pcall(function()
             local directionToTarget = rootPos - cameraPos
             local studsDist = directionToTarget.Magnitude
             local distMeter = math.floor(studsDist / 3.571428)
-            local isCloseRange = (studsDist <= 3.57)
+            
+            -- FIX LOOT DISTANCE: Naikkan menjadi 5 Meter (17.85 Studs)
+            local isCloseRange = (studsDist <= 3.57) -- 1m untuk Chams hidup
+            local isLootRange = (studsDist <= 17.85) -- 5m untuk mayat
 
             local shouldRender = false
             if isDead then
@@ -849,8 +862,8 @@ local success, err = pcall(function()
                 continue
             end
 
-            -- LOOT & FORGET: Hancurkan otomatis saat dipijak
-            if isDead and isCloseRange then
+            -- FIX LOOT & FORGET: Hancurkan ESP mayat di jarak <= 5 Meter
+            if isDead and isLootRange then
                 box.HasBeenLooted = true
                 if box.Highlight then box.Highlight:Destroy(); box.Highlight = nil end
                 if box.DistBillboard then box.DistBillboard:Destroy(); box.DistBillboard = nil end
@@ -931,8 +944,11 @@ local success, err = pcall(function()
                     local bulletSpeedStuds = bulletSpeed * 3.571428
                     local timeToTarget = studsDist / bulletSpeedStuds
                     
+                    -- FIX AIMLOCK CRASH: Filter NaN & Infinity Velocity (Penyebab Crash Akhir Game)
                     local currentVelocity = tHead.AssemblyLinearVelocity
-                    if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0, 0, 0) end
+                    if typeof(currentVelocity) ~= "Vector3" or currentVelocity.X ~= currentVelocity.X or currentVelocity.Y ~= currentVelocity.Y or currentVelocity.Z ~= currentVelocity.Z or math.abs(currentVelocity.X) == math.huge or math.abs(currentVelocity.Y) == math.huge or math.abs(currentVelocity.Z) == math.huge then
+                        currentVelocity = Vector3.new(0, 0, 0)
+                    end
                     
                     local dropCompensation = 0
                     if not ESP_Config.GunMods then
@@ -943,7 +959,10 @@ local success, err = pcall(function()
                     local screenAimPos, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
                     
                     if onScreenAim then
-                        Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
+                        -- FIX AIMLOCK CRASH: Bungkus Kamera Lerp dengan pcall
+                        pcall(function()
+                            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
+                        end)
                     end
                 else
                     CurrentTargetEntity = nil

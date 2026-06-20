@@ -751,9 +751,10 @@ local success, err = pcall(function()
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
             local function HideVisuals()
-                -- PERBAIKAN: Cek status sebelum mematikan untuk mencegah engine crash
-                if box.Highlight and box.Highlight.Enabled then 
-                    box.Highlight.Enabled = false 
+                -- KOREKSI FATAL: Gunakan Transparansi, JANGAN PERNAH gunakan Enabled = false pada Highlight!
+                if box.Highlight and box.Highlight.FillTransparency ~= 1 then 
+                    box.Highlight.FillTransparency = 1
+                    box.Highlight.OutlineTransparency = 1
                 end
                 if box.DistBillboard and box.DistBillboard.Enabled then 
                     box.DistBillboard.Enabled = false 
@@ -833,17 +834,19 @@ local success, err = pcall(function()
                 end
             end
 
-            -- PERBAIKAN: State Checker untuk ESP Hilang/Rebuild (Super Mulus)
+            -- KOREKSI FATAL: State Checker MURNI Transparansi (Super Mulus, Anti-Glitch)
             if box.Highlight then
                 if isCloseRange then
-                    if box.Highlight.Enabled then
-                        box.Highlight.Enabled = false
+                    if box.Highlight.FillTransparency ~= 1 then
+                        box.Highlight.FillTransparency = 1
+                        box.Highlight.OutlineTransparency = 1
                     end
                 else
-                    if not box.Highlight.Enabled then
-                        box.Highlight.Enabled = true
+                    if box.Highlight.FillTransparency ~= 0.5 then
+                        box.Highlight.FillTransparency = 0.5
+                        box.Highlight.OutlineTransparency = 0
                     end
-                    -- Update warna tanpa spam transparency
+                    -- Update warna hanya jika berubah (Mencegah spam VRAM)
                     if box.Highlight.FillColor ~= finalColor then
                         box.Highlight.FillColor = finalColor
                         box.Highlight.OutlineColor = finalColor
@@ -866,9 +869,9 @@ local success, err = pcall(function()
                     local studsDist = dirToTarget.Magnitude
                     
                     local bulletSpeed = GetBulletSpeed()
-                    if bulletSpeed <= 0 then bulletSpeed = 800 end -- Default kecepatan rifle
+                    if bulletSpeed <= 0 then bulletSpeed = 800 end 
                     
-                    -- PERBAIKAN FISIKA MUTLAK: Konversi Meter/Detik ke Studs/Detik
+                    -- Konversi Meter/Detik ke Studs/Detik (Akurasi peluru jarak jauh)
                     local bulletSpeedStuds = bulletSpeed * 3.571428
                     local timeToTarget = studsDist / bulletSpeedStuds
                     

@@ -355,64 +355,86 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
+--[[
         ================================================
         --        MODULE 3: VISIBILITY ENGINE         --
         ================================================
     ]]
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
+
         local origin = Camera.CFrame.Position
         local targetPos = targetPart.Position
         local direction = targetPos - origin
         local distance = direction.Magnitude
         
-        if distance < 7 then return "Visible", true end
-        if not ESP_Config.VisCheck then return "Visible", true end
+        if distance < 7 then
+            return "Visible", true
+        end
+
+        if not ESP_Config.VisCheck then
+            return "Visible", true
+        end
         
         local lpChar = LocalPlayer.Character
-        if not lpChar or not lpChar:FindFirstChild("Head") then return "Blocked", false end
+        if not lpChar or not lpChar:FindFirstChild("Head") then
+            return "Blocked", false
+        end
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
-        if targetChar then table.insert(ignoreList, targetChar) end
-
+        
+        -- FIX ANTI-GHOST: Masukkan folder Ignore bawaan server
         local ignoreFolder = workspace:FindFirstChild("Ignore")
         if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
-        for _, child in ipairs(Camera:GetChildren()) do
-            table.insert(ignoreList, child)
+        
+        if targetChar then
+            table.insert(ignoreList, targetChar)
         end
         
         local loopCounter = 0
 
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 50 then return "Blocked", false end
+            -- FIX ANTI-LAG: Batasi maksimal 15 lapis penetrasi agar tidak freeze
+            if loopCounter >= 15 then
+                return "Blocked", false
+            end
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
 
-            if not raycastResult then return "Visible", true end
+            if not raycastResult then
+                return "Visible", true
+            end
             
             local hitInstance = raycastResult.Instance
-            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
-            if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
+            if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then
+                return "Blocked", false
+            end
+            
+            if hitInstance:IsDescendantOf(targetChar) then
+                return "Visible", true
+            end
 
-            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
             local mat = raycastResult.Material
             local nameLow = hitInstance.Name:lower()
-            local parentNameLow = hitInstance.Parent and hitInstance.Parent.Name:lower() or ""
             
-            local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
+            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
+            local isWallbangMat = WallbangableMaterials[mat]
             
-            local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("block") or nameLow:find("cover") or nameLow:find("sandbag") or nameLow:find("prop") or nameLow:find("mesh") or nameLow:find("hitbox") or nameLow:find("zone") or nameLow:find("sensor") or nameLow:find("viewmodel") or nameLow:find("arm") or nameLow:find("trigger")
-            local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall") or parentNameLow:find("barrier") or parentNameLow:find("concrete") or parentNameLow:find("block") or parentNameLow:find("cover") or parentNameLow:find("sandbag") or parentNameLow:find("prop") or parentNameLow:find("mesh") or parentNameLow:find("hitbox") or parentNameLow:find("viewmodel") or parentNameLow:find("arm")
-
-            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isWallbangName or isParentWallbang
+            -- FIX WALLBANG MULTI-LAPIS (Lebih ringan tanpa bikin CPU lag)
+            local isWallbangName = false
+            if not isWallbangMat and not isNonSolid then
+                -- Hanya mengecek kata kunci krusial jika materialnya gagal dikenali
+                isWallbangName = nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover")
+            end
             
-            if wallbang then
+            if isWallbangMat or isNonSolid or isWallbangName then
+                -- Jika tembus, abaikan lapisan ini, tembak lagi sinarnya!
                 table.insert(ignoreList, hitInstance)
             else
+                -- LOGIKA ANTI BETON STRICT (Terhalang batu/besi/beton mutlak)
                 return "Blocked", false
             end
         end

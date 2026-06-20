@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|    PROJECT DELTA V8 ULTIMATE - PURE COMBAT (DYNAMIC BALLISTIC EDITION)     |--
+    --|    PROJECT DELTA V8 ULTIMATE - PURE COMBAT (PURE PHYSICS EDITION)          |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -147,7 +147,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Dynamic Ballistic"
+    Header.Text = "Project Delta V8 - Pure Physics Ballistic"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -254,35 +254,30 @@ local success, err = pcall(function()
         end
     end)
 
-    -- FIX: DATABASE BALISTIK DINAMIS (VELOCITY & BULLET DROP)
+    -- FIX FISIKA MURNI: Ekstrak Kecepatan Murni & Pengali Gravitasi Developer
     local function GetWeaponStats()
         local defaultSpeed = 800
-        local defaultDrop = 35 -- Gravitasi rata-rata (AR)
+        local gravityMultiplier = 1 -- 1 = Gravitasi Normal (35 studs/s)
         
         local char = LocalPlayer.Character
-        if not char then return defaultSpeed, defaultDrop end
+        if not char then return defaultSpeed, gravityMultiplier end
         
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
             local toolName = tool.Name:lower()
             
+            -- Kamus hanya memuat kecepatan (Velocity), tidak lagi memuat tebakan gravitasi!
             local pdWeapons = {
-                ["mosin"] = {v = 885, d = 20}, ["svd"] = {v = 830, d = 20},
-                ["r700"] = {v = 800, d = 20}, ["remington"] = {v = 800, d = 20},
-                ["fal"] = {v = 840, d = 25}, ["m4a1"] = {v = 850, d = 35},
-                ["akmn"] = {v = 715, d = 35}, ["akm"] = {v = 715, d = 35},
-                ["ak-74"] = {v = 900, d = 30}, ["sks"] = {v = 735, d = 35},
-                ["pkm"] = {v = 825, d = 30}, ["as val"] = {v = 295, d = 55},
-                ["vss"] = {v = 292, d = 55}, ["mp5"] = {v = 400, d = 55},
-                ["ump"] = {v = 285, d = 55}, ["vector"] = {v = 320, d = 55},
-                ["mac"] = {v = 355, d = 55}, ["glock"] = {v = 375, d = 55},
-                ["m9"] = {v = 380, d = 55}, ["saiga"] = {v = 400, d = 60}
+                ["mosin"] = 885, ["svd"] = 830, ["r700"] = 800, ["remington"] = 800,
+                ["fal"] = 840, ["m4a1"] = 850, ["akmn"] = 715, ["akm"] = 715,
+                ["ak-74"] = 900, ["sks"] = 735, ["pkm"] = 825, ["as val"] = 295,
+                ["vss"] = 292, ["mp5"] = 400, ["ump"] = 285, ["vector"] = 320,
+                ["mac"] = 355, ["glock"] = 375, ["m9"] = 380, ["saiga"] = 400
             }
             
-            for key, stats in pairs(pdWeapons) do
+            for key, vel in pairs(pdWeapons) do
                 if toolName:find(key) then
-                    defaultSpeed = stats.v
-                    defaultDrop = stats.d
+                    defaultSpeed = vel
                     break
                 end
             end
@@ -292,11 +287,15 @@ local success, err = pcall(function()
                 local s, data = pcall(require, settingsModule)
                 if s and type(data) == "table" then
                     defaultSpeed = data.MuzzleVelocity or data.BulletSpeed or defaultSpeed
-                    defaultDrop = data.ProjectileDrop or data.GravityMultiplier or data.BulletDrop or defaultDrop
+                    if data.GravityMultiplier then
+                        gravityMultiplier = data.GravityMultiplier
+                    elseif data.ProjectileDrop then
+                        gravityMultiplier = data.ProjectileDrop / 35
+                    end
                 end
             end
         end
-        return defaultSpeed, defaultDrop
+        return defaultSpeed, gravityMultiplier
     end
 
     local function IsEntityDead(char)
@@ -378,7 +377,6 @@ local success, err = pcall(function()
         table.insert(ignoreList, Camera)
         if targetChar then table.insert(ignoreList, targetChar) end
 
-        -- FIX RAYCAST: Abaikan folder "Ignore" & Viewmodel secara mutlak dari awal
         local ignoreFolder = workspace:FindFirstChild("Ignore")
         if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
         for _, child in ipairs(Camera:GetChildren()) do
@@ -407,7 +405,6 @@ local success, err = pcall(function()
             
             local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
             
-            -- FIX RAYCAST (OBJEK GHAIB): Tambahkan "viewmodel", "hitbox", "zone", "sensor", "arm", "trigger"
             local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("block") or nameLow:find("cover") or nameLow:find("sandbag") or nameLow:find("prop") or nameLow:find("mesh") or nameLow:find("hitbox") or nameLow:find("zone") or nameLow:find("sensor") or nameLow:find("viewmodel") or nameLow:find("arm") or nameLow:find("trigger")
             local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall") or parentNameLow:find("barrier") or parentNameLow:find("concrete") or parentNameLow:find("block") or parentNameLow:find("cover") or parentNameLow:find("sandbag") or parentNameLow:find("prop") or parentNameLow:find("mesh") or parentNameLow:find("hitbox") or parentNameLow:find("viewmodel") or parentNameLow:find("arm")
 
@@ -951,10 +948,10 @@ local success, err = pcall(function()
                     local dirToTarget = targetPos - cameraPos
                     local studsDist = dirToTarget.Magnitude
                     
-                    -- FIX BALISTIK DINAMIS: Ambil kecepatan peluru dan gravitasi spesifik senjata
-                    local bulletSpeed, dynamicDrop = GetWeaponStats()
+                    -- MENGAMBIL KECEPATAN MURNI DAN FAKTOR GRAVITASI DARI DATABASE FISIKA
+                    local bulletSpeed, gravityMultiplier = GetWeaponStats()
                     if bulletSpeed <= 0 then bulletSpeed = 800 end 
-                    if dynamicDrop <= 0 then dynamicDrop = 35 end
+                    if gravityMultiplier <= 0 then gravityMultiplier = 1 end
                     
                     local bulletSpeedStuds = bulletSpeed * 3.571428
                     local timeToTarget = studsDist / bulletSpeedStuds
@@ -966,8 +963,8 @@ local success, err = pcall(function()
                     
                     local dropCompensation = 0
                     if not ESP_Config.GunMods then
-                        -- FIX BALISTIK DINAMIS: Implementasi kalkulasi gravitasi khusus per senjata
-                        dropCompensation = (0.5 * dynamicDrop * (timeToTarget * timeToTarget))
+                        -- RUMUS FISIKA UNIVERSAL PROJECT DELTA (Drop = 0.5 * 35g * t^2)
+                        dropCompensation = 0.5 * (35 * gravityMultiplier) * (timeToTarget * timeToTarget)
                     end
                     
                     local finalAimPos = targetPos + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)

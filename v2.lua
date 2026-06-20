@@ -347,7 +347,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
+--[[
         ================================================
         --        MODULE 3: VISIBILITY ENGINE         --
         ================================================
@@ -391,20 +391,22 @@ local success, err = pcall(function()
             
             local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
             
-            -- FIX WALLBANG: Bypass Pagar Kayu Plastik
-            local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window")
-            local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall")
+            -- FIX WALLBANG SUPER SAPU JAGAT: Tambahan eksekusi untuk Beton, Barrier, Karung Pasir, dan Prop
+            local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("block") or nameLow:find("cover") or nameLow:find("sandbag") or nameLow:find("prop") or nameLow:find("mesh")
+            local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall") or parentNameLow:find("barrier") or parentNameLow:find("concrete") or parentNameLow:find("block") or parentNameLow:find("cover") or parentNameLow:find("sandbag") or parentNameLow:find("prop") or parentNameLow:find("mesh")
 
             local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isWallbangName or isParentWallbang
             
             if wallbang then
+                -- Jika tertabrak benda yang boleh di-wallbang, masukkan benda itu ke daftar abaikan, lalu tembak sinar lagi menembusnya!
                 table.insert(ignoreList, hitInstance)
             else
+                -- Jika murni menabrak tebing/batu/tanah solid, baru diblokir
                 return "Blocked", false
             end
         end
     end
-
+        
     --[[
         ================================================
         -- MODULE 3.5: BACKGROUND VISIBILITY THREAD   --

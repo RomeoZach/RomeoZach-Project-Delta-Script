@@ -555,7 +555,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
+--[[
         ================================================
         --       MODULE 6: ENTITY SCANNER THREAD      --
         ================================================
@@ -601,14 +601,24 @@ local success, err = pcall(function()
                 end
             end
 
-            local loopCount1 = 0
-            for _, child in ipairs(workspace:GetChildren()) do
-                loopCount1 = loopCount1 + 1
-                if loopCount1 % 25 == 0 then task.wait(0.01) end
-                if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Terrain" and child.Name ~= "Camera" then
-                    ScanEntity(child)
+            local function ScanFolder(parentFolder)
+                if not parentFolder then return end
+                local loopCount = 0
+                for _, child in ipairs(parentFolder:GetChildren()) do
+                    loopCount = loopCount + 1
+                    if loopCount % 25 == 0 then task.wait(0.01) end
+                    if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Camera" then
+                        ScanEntity(child)
+                    end
                 end
             end
+
+            -- PERBAIKAN: Ekspansi Radar Mayat ke Folder Tersembunyi
+            ScanFolder(workspace)
+            ScanFolder(workspace:FindFirstChild("Ignore"))
+            ScanFolder(workspace:FindFirstChild("Ragdolls"))
+            ScanFolder(workspace:FindFirstChild("DeadBodies"))
+            ScanFolder(workspace:FindFirstChild("Corpses"))
             task.wait()
 
             local aiZonesFolder = workspace:FindFirstChild("AiZones")
@@ -721,7 +731,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
+--[[
         ================================================
         --      MODULE 9: RENDER LOOP & AIMLOCK       --
         ================================================
@@ -741,11 +751,11 @@ local success, err = pcall(function()
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
             local function HideVisuals()
-                if box.Highlight then 
-                    box.Highlight.FillTransparency = 1
-                    box.Highlight.OutlineTransparency = 1
+                -- PERBAIKAN: Cek status sebelum mematikan untuk mencegah engine crash
+                if box.Highlight and box.Highlight.Enabled then 
+                    box.Highlight.Enabled = false 
                 end
-                if box.DistBillboard then 
+                if box.DistBillboard and box.DistBillboard.Enabled then 
                     box.DistBillboard.Enabled = false 
                 end
             end
@@ -801,22 +811,11 @@ local success, err = pcall(function()
             
             if isDead then
                 finalColor = COLOR_DEAD
-                if box.DistBillboard then box.DistBillboard.Enabled = false end
-                
-                if box.Highlight then
-                    if isCloseRange then
-                        box.Highlight.FillTransparency = 1
-                        box.Highlight.OutlineTransparency = 1
-                    else
-                        box.Highlight.FillColor = finalColor
-                        box.Highlight.OutlineColor = finalColor
-                        box.Highlight.OutlineTransparency = 0
-                        box.Highlight.FillTransparency = 0.5
-                    end
+                if box.DistBillboard and box.DistBillboard.Enabled then 
+                    box.DistBillboard.Enabled = false 
                 end
             else
                 isTeam = IsTeammate(char)
-                
                 if isTeam then
                     finalColor = ESP_Config.Color
                     textColor = (box.VisStatus == "Blocked") and COLOR_TEAM_BLOCKED or COLOR_TEAM_VISIBLE
@@ -825,23 +824,29 @@ local success, err = pcall(function()
                     textColor = finalColor
                 end
 
-                if box.Highlight then
-                    if isCloseRange then
-                        box.Highlight.FillTransparency = 1
-                        box.Highlight.OutlineTransparency = 1
-                    else
-                        box.Highlight.FillColor = finalColor
-                        box.Highlight.OutlineColor = finalColor
-                        box.Highlight.OutlineTransparency = 0
-                        box.Highlight.FillTransparency = 0.5
-                    end
-                end
-
                 if box.DistBillboard then
-                    box.DistBillboard.Enabled = true
+                    if not box.DistBillboard.Enabled then box.DistBillboard.Enabled = true end
                     if box.DistLabel then
                         box.DistLabel.Text = string.format("[%d m]", distMeter)
                         box.DistLabel.TextColor3 = textColor
+                    end
+                end
+            end
+
+            -- PERBAIKAN: State Checker untuk ESP Hilang/Rebuild (Super Mulus)
+            if box.Highlight then
+                if isCloseRange then
+                    if box.Highlight.Enabled then
+                        box.Highlight.Enabled = false
+                    end
+                else
+                    if not box.Highlight.Enabled then
+                        box.Highlight.Enabled = true
+                    end
+                    -- Update warna tanpa spam transparency
+                    if box.Highlight.FillColor ~= finalColor then
+                        box.Highlight.FillColor = finalColor
+                        box.Highlight.OutlineColor = finalColor
                     end
                 end
             end
@@ -861,9 +866,12 @@ local success, err = pcall(function()
                     local studsDist = dirToTarget.Magnitude
                     
                     local bulletSpeed = GetBulletSpeed()
-                    if bulletSpeed <= 0 then bulletSpeed = 1500 end
+                    if bulletSpeed <= 0 then bulletSpeed = 800 end -- Default kecepatan rifle
                     
-                    local timeToTarget = studsDist / bulletSpeed
+                    -- PERBAIKAN FISIKA MUTLAK: Konversi Meter/Detik ke Studs/Detik
+                    local bulletSpeedStuds = bulletSpeed * 3.571428
+                    local timeToTarget = studsDist / bulletSpeedStuds
+                    
                     local currentVelocity = tHead.AssemblyLinearVelocity
                     if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0, 0, 0) end
                     

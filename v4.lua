@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|           PROJECT DELTA V8 ULTIMATE - REBUILT & MODULARIZED                |--
+    --|            PROJECT DELTA V8 ULTIMATE - REBUILT & MODULARIZED               |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -142,7 +142,6 @@ local success, err = pcall(function()
 
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame"
-    -- UI Size Diperbaiki menjadi 300 sesuai permintaan!
     MainFrame.Size = UDim2.new(0, 480, 0, 300) 
     MainFrame.Position = UDim2.new(0.5, -240, 0.5, -150)
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18)
@@ -161,7 +160,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Ultimate"
+    Header.Text = "Project Delta V8 - Ultimate Ballistics"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -274,18 +273,37 @@ local success, err = pcall(function()
         end
     end)
 
+    -- FIX KALIBRASI: Kamus Memori Senjata 
     local function GetBulletSpeed()
-        local defaultSpeed = 1500
+        local defaultSpeed = 800 -- Default M/S
         local char = LocalPlayer.Character
         if not char then return defaultSpeed end
         
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
-            local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings")
+            local toolName = tool.Name:lower()
+            
+            -- Database Kecepatan M/S Murni (Sesuai Wiki)
+            local pdWeapons = {
+                ["mosin"] = 885, ["svd"] = 830, ["r700"] = 800, ["remington"] = 800,
+                ["fal"] = 840, ["m4a1"] = 850, ["akmn"] = 715, ["akm"] = 715,
+                ["ak-74"] = 900, ["sks"] = 735, ["pkm"] = 825, ["as val"] = 295,
+                ["vss"] = 292, ["mp5"] = 400, ["ump"] = 285, ["vector"] = 320,
+                ["mac"] = 355, ["glock"] = 375, ["m9"] = 380, ["saiga"] = 400
+            }
+            
+            for key, vel in pairs(pdWeapons) do
+                if toolName:find(key) then
+                    defaultSpeed = vel
+                    break
+                end
+            end
+
+            local settingsModule = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings") or tool:FindFirstChild("Stats")
             if settingsModule and settingsModule:IsA("ModuleScript") then
                 local s, data = pcall(require, settingsModule)
                 if s and type(data) == "table" then
-                    return data.BulletSpeed or data.MuzzleVelocity or defaultSpeed
+                    return data.MuzzleVelocity or data.BulletSpeed or defaultSpeed
                 end
             end
         end
@@ -383,6 +401,11 @@ local success, err = pcall(function()
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
+        
+        -- FIX ANTI-GHOST: Hitbox & Dinding Angin Server di-bypass dari awal
+        local ignoreFolder = workspace:FindFirstChild("Ignore")
+        if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
+        
         if targetChar then
             table.insert(ignoreList, targetChar)
         end
@@ -391,7 +414,8 @@ local success, err = pcall(function()
 
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 30 then
+            -- FIX ANTI-LAG: Maksimal membedah 15 lapis objek agar CPU tidak freeze
+            if loopCounter >= 15 then
                 return "Blocked", false
             end
 
@@ -413,14 +437,21 @@ local success, err = pcall(function()
 
             local mat = raycastResult.Material
             local nameLow = hitInstance.Name:lower()
-            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
-            local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore")
-            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage
             
-            if wallbang then
+            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
+            local isWallbangMat = WallbangableMaterials[mat]
+            
+            -- FIX WALLBANG MULTI-LAPIS (Lebih ringan & akurat)
+            local isWallbangName = false
+            if not isWallbangMat and not isNonSolid then
+                isWallbangName = nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("prop")
+            end
+            
+            if isWallbangMat or isNonSolid or isWallbangName then
+                -- Ditembus, masuk ignore list, lanjut tembak sinarnya
                 table.insert(ignoreList, hitInstance)
             else
-                -- LOGIKA ANTI BETON STRICT (Memutus Loop Langsung)
+                -- Mentok di benda padat besi/batu (seperti Filling Cabinet), Aimlock Blokir.
                 return "Blocked", false
             end
         end
@@ -429,7 +460,7 @@ local success, err = pcall(function()
     local function GetBestTargetInFOV()
         local bestEntity = nil
         local bestChar = nil
-        local shortestPixelDist = 300
+        local shortestPixelDist = ESP_Config.FovRadius
         local centerPos = Camera.ViewportSize / 2
         local origin = Camera.CFrame.Position
         
@@ -457,24 +488,7 @@ local success, err = pcall(function()
                     if isPlayer and studsDist > 3571.4 then continue end
                     if not isPlayer and studsDist > 1607.1 then continue end
 
-                    local bulletSpeed = GetBulletSpeed()
-                    if bulletSpeed <= 0 then
-                        bulletSpeed = 1500
-                    end
-                    local timeToTarget = studsDist / bulletSpeed
-                    
-                    local currentVelocity = head.AssemblyLinearVelocity
-                    if currentVelocity.X ~= currentVelocity.X then
-                        currentVelocity = Vector3.new(0, 0, 0)
-                    end
-                    
-                    local dropCompensation = 0
-                    if not ESP_Config.GunMods then
-                        dropCompensation = (0.5 * workspace.Gravity * (timeToTarget * timeToTarget))
-                    end
-                    
-                    local predictedPos = head.Position + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
-                    
+                    local predictedPos = head.Position
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
                     if onScreen then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
@@ -498,21 +512,11 @@ local success, err = pcall(function()
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
-            if box.Highlight then
-                box.Highlight:Destroy()
-            end
-            if box.DistBillboard then
-                box.DistBillboard:Destroy()
-            end
-            if box.Highlight_Item then
-                box.Highlight_Item:Destroy()
-            end
-            if box.Billboard_Item then
-                box.Billboard_Item:Destroy()
-            end
-            if box.Connection then
-                box.Connection:Disconnect()
-            end
+            if box.Highlight then box.Highlight:Destroy() end
+            if box.DistBillboard then box.DistBillboard:Destroy() end
+            if box.Highlight_Item then box.Highlight_Item:Destroy() end
+            if box.Billboard_Item then box.Billboard_Item:Destroy() end
+            if box.Connection then box.Connection:Disconnect() end
             ESP_Objects[entity] = nil
         end
     end
@@ -538,12 +542,8 @@ local success, err = pcall(function()
                 if not char or not char.Parent then return end 
             end
 
-            if box.Highlight then
-                box.Highlight:Destroy()
-            end
-            if box.DistBillboard then
-                box.DistBillboard:Destroy()
-            end
+            if box.Highlight then box.Highlight:Destroy() end
+            if box.DistBillboard then box.DistBillboard:Destroy() end
 
             box.Character = char
             
@@ -552,9 +552,7 @@ local success, err = pcall(function()
             
             if rootPart then
                 local visStatus, canLock = checkTargetVisibility(rootPart, char)
-                if canLock then
-                    initialVisColor = ESP_Config.Color
-                end
+                if canLock then initialVisColor = ESP_Config.Color end
             end
 
             local hl = Instance.new("Highlight")
@@ -591,9 +589,7 @@ local success, err = pcall(function()
         end
         
         if isPlayer then 
-            if entity.Character then
-                ApplyVisuals(entity.Character)
-            end
+            if entity.Character then ApplyVisuals(entity.Character) end
             box.Connection = entity.CharacterAdded:Connect(ApplyVisuals) 
         else 
             ApplyVisuals(entity) 
@@ -864,9 +860,7 @@ local success, err = pcall(function()
 
     task.spawn(function()
         while task.wait(2) do
-            if isItemScanning then
-                continue
-            end
+            if isItemScanning then continue end
             isItemScanning = true
             
             if not ESP_Config.ESP_Loot and not ESP_Config.ESP_Containers then
@@ -1411,12 +1405,17 @@ local success, err = pcall(function()
                         local dirToTarget = targetPos - cameraPos
                         local studsDist = dirToTarget.Magnitude
                         
-                        local bulletSpeed = GetBulletSpeed()
-                        if bulletSpeed <= 0 then
-                            bulletSpeed = 1500
-                        end
+                        -- FIX KALIBRASI: Ekstrak Kecepatan M/S dan konversi ke Studs
+                        local bulletSpeedMS = GetBulletSpeed()
+                        if bulletSpeedMS <= 0 then bulletSpeedMS = 800 end
                         
-                        local timeToTarget = studsDist / bulletSpeed
+                        local bulletSpeedStuds = bulletSpeedMS * 3.571428
+                        
+                        -- FIX KALIBRASI: Kalkulator Hambatan Udara (Drag Air Friction)
+                        -- Peluru MP5 di 200m+ akan kehilangan momentum dan drop sangat tajam.
+                        local dragFactor = 1 + (studsDist / 1500)
+                        local realTime = (studsDist / bulletSpeedStuds) * dragFactor
+                        
                         local currentVelocity = tHead.AssemblyLinearVelocity
                         if currentVelocity.X ~= currentVelocity.X then
                             currentVelocity = Vector3.new(0, 0, 0)
@@ -1424,10 +1423,11 @@ local success, err = pcall(function()
                         
                         local dropCompensation = 0
                         if not ESP_Config.GunMods then
-                            dropCompensation = (0.5 * workspace.Gravity * (timeToTarget * timeToTarget))
+                            -- Gravitasi * Waktu Riil Kuadrat
+                            dropCompensation = (0.5 * workspace.Gravity * (realTime * realTime))
                         end
                         
-                        local finalAimPos = targetPos + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
+                        local finalAimPos = targetPos + (currentVelocity * realTime) + Vector3.new(0, dropCompensation, 0)
                         local screenAimPos, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
                         
                         if onScreenAim then

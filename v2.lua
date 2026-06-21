@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|      PROJECT DELTA V8 ULTIMATE - PURE COMBAT (BALLISTIC EDITION)           |--
+    --|            PROJECT DELTA V8 ULTIMATE - PURE COMBAT EDITION                 |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -27,8 +27,9 @@ local success, err = pcall(function()
     local UserInputService = game:GetService("UserInputService")
     local Lighting = game:GetService("Lighting")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local Camera = workspace.CurrentCamera
+
     local LocalPlayer = Players.LocalPlayer
+    local Camera = workspace.CurrentCamera
 
     local ESP_Config = {
         AimLock = false,
@@ -47,7 +48,7 @@ local success, err = pcall(function()
 
     local COLOR_VISIBLE = ESP_Config.Color
     local COLOR_BLOCKED = Color3.fromRGB(160, 160, 165)
-    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221) -- Ungu Plum Klasik
+    local COLOR_DEAD    = Color3.fromRGB(221, 160, 221)
     local COLOR_TEAM_VISIBLE = Color3.fromRGB(50, 255, 50)
     local COLOR_TEAM_BLOCKED = Color3.fromRGB(0, 150, 0)
 
@@ -147,7 +148,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40)
     Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Ballistic Edition"
+    Header.Text = "Project Delta V8 - Pure Combat Edition"
     Header.TextColor3 = Color3.fromRGB(240, 240, 245)
     Header.TextSize = 14
     Header.Font = Enum.Font.GothamBold
@@ -166,6 +167,7 @@ local success, err = pcall(function()
     local function CreateToggle(labelText, configKey)
         local Frame = Instance.new("Frame", ContainerUI)
         Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27)
+        Frame.BorderSizePixel = 0
         local cornerFrame = Instance.new("UICorner", Frame)
         cornerFrame.CornerRadius = UDim.new(0, 6)
 
@@ -205,23 +207,20 @@ local success, err = pcall(function()
             local isActive = ESP_Config[configKey]
             
             local trackTweenInfo = TweenInfo.new(0.2)
-            local targetBgColor = isActive and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
-            TweenService:Create(Track, trackTweenInfo, {BackgroundColor3 = targetBgColor}):Play()
+            TweenService:Create(Track, trackTweenInfo, {BackgroundColor3 = isActive and ESP_Config.Color or Color3.fromRGB(40, 43, 48)}):Play()
             
             local knobTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local targetKnobPos = isActive and knobActivePos or knobInactivePos
-            TweenService:Create(Knob, knobTweenInfo, {Position = targetKnobPos}):Play()
+            TweenService:Create(Knob, knobTweenInfo, {Position = isActive and knobActivePos or knobInactivePos}):Play()
 
             if configKey == "AimLock" and not ESP_Config.AimLock then
                 CurrentTargetChar = nil
             end
             
             if configKey == "Crosshair" then
-                for _, line in ipairs(CrosshairLines) do
-                    line.Visible = ESP_Config.Crosshair
-                end
+                for _, line in ipairs(CrosshairLines) do line.Visible = ESP_Config.Crosshair end
             end
         end)
+        
         return Frame
     end
 
@@ -262,15 +261,13 @@ local success, err = pcall(function()
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
             local toolName = tool.Name:lower()
-            
             local pdWeapons = {
-                ["mosin"] = 885, ["m4a1"] = 850, ["akmn"] = 715, ["akm"] = 715,
-                ["ak-74"] = 900, ["as val"] = 295, ["vss"] = 292, ["sks"] = 735,
-                ["svd"] = 830, ["r700"] = 800, ["remington"] = 800, ["fal"] = 840,
-                ["mp5"] = 400, ["ump"] = 285, ["glock"] = 375, ["m9"] = 380,
-                ["mac"] = 355, ["saiga"] = 400, ["pkm"] = 825, ["vector"] = 320
+                ["mosin"] = 885, ["svd"] = 830, ["r700"] = 800, ["remington"] = 800,
+                ["fal"] = 840, ["m4a1"] = 850, ["akmn"] = 715, ["akm"] = 715,
+                ["ak-74"] = 900, ["sks"] = 735, ["pkm"] = 825, ["as val"] = 295,
+                ["vss"] = 292, ["mp5"] = 400, ["ump"] = 285, ["vector"] = 320,
+                ["mac"] = 355, ["glock"] = 375, ["m9"] = 380, ["saiga"] = 400
             }
-            
             for key, vel in pairs(pdWeapons) do
                 if toolName:find(key) then
                     defaultSpeed = vel
@@ -292,16 +289,13 @@ local success, err = pcall(function()
     local function IsEntityDead(char)
         if not char or typeof(char) ~= "Instance" or not char.Parent then return false end
         
-        -- FIX CORPSE DETECT: Override via folder name
-        local pName = char.Parent and string.lower(char.Parent.Name) or ""
-        if pName == "ragdolls" or pName == "corpses" or pName == "deadbodies" or pName == "ignore" then return true end
-        
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             if hum.Health <= 0 or hum.Health ~= hum.Health then return true end
             if hum:GetState() == Enum.HumanoidStateType.Dead then return true end
             return false
         end
+        
         local nameLower = string.lower(char.Name)
         if char:IsA("Model") then
             if char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso") then
@@ -347,13 +341,14 @@ local success, err = pcall(function()
         return false
     end
 
---[[
+    --[[
         ================================================
         --        MODULE 3: VISIBILITY ENGINE         --
         ================================================
     ]]
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
+
         local origin = Camera.CFrame.Position
         local targetPos = targetPart.Position
         local direction = targetPos - origin
@@ -367,13 +362,17 @@ local success, err = pcall(function()
         
         table.insert(ignoreList, lpChar)
         table.insert(ignoreList, Camera)
+        
+        local ignoreFolder = workspace:FindFirstChild("Ignore")
+        if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
+        
         if targetChar then table.insert(ignoreList, targetChar) end
         
         local loopCounter = 0
 
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 50 then return "Blocked", false end
+            if loopCounter >= 15 then return "Blocked", false end
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
@@ -384,82 +383,63 @@ local success, err = pcall(function()
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
             if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
 
-            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
             local mat = raycastResult.Material
             local nameLow = hitInstance.Name:lower()
-            local parentNameLow = hitInstance.Parent and hitInstance.Parent.Name:lower() or ""
             
-            local isFoliage = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("tent") or nameLow:find("fabric") or nameLow:find("canvas") or nameLow:find("cloth") or nameLow:find("net") or nameLow:find("camo") or nameLow:find("bush") or nameLow:find("leaf")
+            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
+            local isWallbangMat = WallbangableMaterials[mat]
             
-            -- FIX WALLBANG SUPER SAPU JAGAT: Tambahan eksekusi untuk Beton, Barrier, Karung Pasir, dan Prop
-            local isWallbangName = nameLow:find("wood") or nameLow:find("fence") or nameLow:find("plank") or nameLow:find("door") or nameLow:find("wall") or nameLow:find("window") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("block") or nameLow:find("cover") or nameLow:find("sandbag") or nameLow:find("prop") or nameLow:find("mesh")
-            local isParentWallbang = parentNameLow:find("wood") or parentNameLow:find("fence") or parentNameLow:find("plank") or parentNameLow:find("door") or parentNameLow:find("wall") or parentNameLow:find("barrier") or parentNameLow:find("concrete") or parentNameLow:find("block") or parentNameLow:find("cover") or parentNameLow:find("sandbag") or parentNameLow:find("prop") or parentNameLow:find("mesh")
-
-            local wallbang = WallbangableMaterials[mat] or isNonSolid or isFoliage or isWallbangName or isParentWallbang
+            local isWallbangName = false
+            if not isWallbangMat and not isNonSolid then
+                isWallbangName = nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("prop")
+            end
             
-            if wallbang then
-                -- Jika tertabrak benda yang boleh di-wallbang, masukkan benda itu ke daftar abaikan, lalu tembak sinar lagi menembusnya!
+            if isWallbangMat or isNonSolid or isWallbangName then
                 table.insert(ignoreList, hitInstance)
             else
-                -- Jika murni menabrak tebing/batu/tanah solid, baru diblokir
                 return "Blocked", false
             end
         end
     end
-        
-    --[[
-        ================================================
-        -- MODULE 3.5: BACKGROUND VISIBILITY THREAD   --
-        ================================================
-    ]]
-    task.spawn(function()
-        while task.wait(0.15) do
-            if not ESP_Config.VisCheck then continue end
-            for entity, box in pairs(ESP_Objects) do
-                local char = box.Character
-                if char and char.Parent and not IsEntityDead(char) then
-                    local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-                    if head then
-                        local visStatus, canLock = checkTargetVisibility(head, char)
-                        box.VisStatus = visStatus
-                        box.CanLock = canLock
-                    end
-                end
-            end
-        end
-    end)
 
     local function GetBestTargetInFOV()
+        local bestEntity = nil
+        local bestChar = nil
         local shortestPixelDist = ESP_Config.FovRadius
         local centerPos = Camera.ViewportSize / 2
-        
-        local closestEntity = nil
-        local closestChar = nil
+        local origin = Camera.CFrame.Position
         
         for entity, box in pairs(ESP_Objects) do
             local char = (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             if char and char ~= LocalPlayer.Character and char.Parent then
-                if IsTeammate(char) or IsEntityDead(char) then continue end
-                
-                if not box.CanLock then continue end
+                if IsTeammate(char) then continue end
 
                 local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-                if head then
+                
+                if head and not IsEntityDead(char) then
+                    local visStatus, canLock = checkTargetVisibility(head, char)
+                    if not canLock then continue end
+
+                    local studsDist = (origin - head.Position).Magnitude
+                    local isPlayer = (typeof(entity) == "Instance" and entity:IsA("Player")) or Players:GetPlayerFromCharacter(char) ~= nil
+                    
+                    if isPlayer and studsDist > 3571.4285714286 then continue end
+                    if not isPlayer and studsDist > 1607.1428571429 then continue end
+
                     local predictedPos = head.Position
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
                     if onScreen then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
                         if screenDist < shortestPixelDist then
                             shortestPixelDist = screenDist
-                            closestEntity = entity
-                            closestChar = char
+                            bestEntity = entity
+                            bestChar = char
                         end
                     end
                 end
             end
         end
-
-        return closestEntity, closestChar
+        return bestEntity, bestChar
     end
 
     --[[
@@ -485,11 +465,10 @@ local success, err = pcall(function()
             Highlight = nil,
             DistBillboard = nil,
             DistLabel = nil,
-            BoxFrame = nil,
+            BoxFrame = nil, 
             BoxStroke = nil,
             Connection = nil,
-            VisStatus = "Visible",
-            CanLock = true,
+            CanBeAimlocked = false,
             HasBeenLooted = false
         }
         
@@ -505,10 +484,10 @@ local success, err = pcall(function()
 
             box.Character = char
             box.HasBeenLooted = false
-
+            
             local hl = Instance.new("Highlight")
-            hl.FillColor = COLOR_VISIBLE
-            hl.OutlineColor = COLOR_VISIBLE
+            hl.FillColor = COLOR_BLOCKED
+            hl.OutlineColor = COLOR_BLOCKED
             hl.FillTransparency = 0.5
             hl.OutlineTransparency = 0
             hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -526,6 +505,7 @@ local success, err = pcall(function()
             distBb.Parent = char
             box.DistBillboard = distBb
             
+            -- Kotak 2D Plum Khusus Mayat
             local boxFrame = Instance.new("Frame", distBb)
             boxFrame.Size = UDim2.new(1, 0, 1, -20)
             boxFrame.BackgroundTransparency = 1
@@ -541,7 +521,7 @@ local success, err = pcall(function()
             distTxt.Position = UDim2.new(0, 0, 1, -20)
             distTxt.BackgroundTransparency = 1
             distTxt.Text = ""
-            distTxt.TextColor3 = COLOR_VISIBLE
+            distTxt.TextColor3 = COLOR_BLOCKED
             distTxt.TextSize = 13
             distTxt.Font = ESP_Config.Font
             distTxt.TextStrokeTransparency = 0
@@ -570,15 +550,8 @@ local success, err = pcall(function()
         if obj.Name == LocalPlayer.Name or (LocalPlayer.Character and obj == LocalPlayer.Character) then return false end
         if obj:IsDescendantOf(Camera) then return false end
         
-        -- FIX CORPSE DETECT: Jaring sapu jagat folder
-        local pName = obj.Parent and string.lower(obj.Parent.Name) or ""
-        if pName == "ragdolls" or pName == "corpses" or pName == "deadbodies" then 
-            if obj:FindFirstChild("Head") or obj:FindFirstChild("Torso") or obj:FindFirstChild("UpperTorso") or obj:FindFirstChild("HumanoidRootPart") then
-                return true 
-            end
-        end
-
         local nameLower = string.lower(obj.Name)
+        
         if nameLower:find("crate") or nameLower:find("box") or nameLower:find("cache") or nameLower:find("bag") or nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then return false end
 
@@ -594,6 +567,7 @@ local success, err = pcall(function()
         if obj:FindFirstChildOfClass("Tool") then return true end
         if obj:FindFirstChildOfClass("Humanoid") then return true end
         if obj:FindFirstChild("Head") and (obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or obj:FindFirstChild("UpperTorso")) then return true end
+        
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or nameLower:find("body") then return true end
         
         return false
@@ -629,8 +603,15 @@ local success, err = pcall(function()
                 local nameLower = obj.Name:lower()
                 if nameLower:find("effect") or nameLower:find("bullet") or nameLower:find("tracer") then return end
                 if nameLower:find("poster") or nameLower:find("decal") or nameLower:find("sign") or nameLower:find("prop") or nameLower:find("static") or nameLower:find("building") or nameLower:find("foliage") then return end
+                if nameLower:find("textlabel") or nameLower:find("uipadding") then return end
+
+                local anatomyBlacklist = {"rightupperarm", "rightlowerarm", "leftupperarm", "leftlowerarm", "rightupperleg", "rightlowerleg", "leftupperleg", "leftlowerleg", "uppertorso", "lowertorso", "head", "torso", "humanoidrootpart", "rootpart", "left arm", "right arm", "left leg", "right leg", "left foot", "right foot", "left hand", "right hand", "leftleg", "rightleg", "leftfoot", "rightfoot", "lefthand", "righthand", "leg", "foot", "hand", "joint"}
+                for _, kw in ipairs(anatomyBlacklist) do
+                    if nameLower == kw or nameLower:match("%f[%w]"..kw.."%f[%W]") then return end
+                end
                 
                 if LocalPlayer.Character and obj == LocalPlayer.Character then return end
+
                 local isPlayerChar = Players:GetPlayerFromCharacter(obj) ~= nil
 
                 if not isPlayerChar then
@@ -645,23 +626,15 @@ local success, err = pcall(function()
                 end
             end
 
-            local function ScanFolder(parentFolder)
-                if not parentFolder then return end
-                local loopCount = 0
-                for _, child in ipairs(parentFolder:GetChildren()) do
-                    loopCount = loopCount + 1
-                    if loopCount % 25 == 0 then task.wait(0.01) end
-                    if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Camera" then
-                        ScanEntity(child)
-                    end
+            local loopCount1 = 0
+            for _, child in ipairs(workspace:GetChildren()) do
+                loopCount1 = loopCount1 + 1
+                if loopCount1 % 25 == 0 then task.wait(0.01) end
+                
+                if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Terrain" and child.Name ~= "Camera" then
+                    ScanEntity(child)
                 end
             end
-
-            ScanFolder(workspace)
-            ScanFolder(workspace:FindFirstChild("Ignore"))
-            ScanFolder(workspace:FindFirstChild("Ragdolls"))
-            ScanFolder(workspace:FindFirstChild("DeadBodies"))
-            ScanFolder(workspace:FindFirstChild("Corpses"))
             task.wait()
 
             local aiZonesFolder = workspace:FindFirstChild("AiZones")
@@ -671,6 +644,7 @@ local success, err = pcall(function()
                     for _, bot in ipairs(zone:GetChildren()) do
                         loopCount2 = loopCount2 + 1
                         if loopCount2 % 25 == 0 then task.wait(0.01) end
+                        
                         if bot:IsA("Model") and bot:FindFirstChildOfClass("Humanoid") then
                             ScanEntity(bot)
                         end
@@ -678,6 +652,7 @@ local success, err = pcall(function()
                 end
             end
             task.wait()
+
             isEntityScanning = false
         end
     end)
@@ -692,17 +667,22 @@ local success, err = pcall(function()
             Lighting.FogEnd = 999999
             Lighting.FogStart = 999999
         end)
+        
         for _, obj in ipairs(Lighting:GetDescendants()) do
             pcall(function()
                 if obj:IsA("Atmosphere") then obj.Density = 0
                 elseif obj:IsA("Clouds") then obj.Enabled = false end
             end)
         end
+
         for _, obj in ipairs(workspace:GetDescendants()) do
             local nameLow = obj.Name:lower()
             if nameLow:find("rain") then
-                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then pcall(function() obj.Enabled = false end)
-                elseif obj:IsA("Sound") then pcall(function() obj.Volume = 0 obj:Stop() end) end
+                if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then
+                    pcall(function() obj.Enabled = false end)
+                elseif obj:IsA("Sound") then
+                    pcall(function() obj.Volume = 0 obj:Stop() end)
+                end
             end
         end
     end
@@ -783,10 +763,12 @@ local success, err = pcall(function()
         local lpChar = LocalPlayer.Character
         if not lpChar then return end
         
+        local lpHead = lpChar:FindFirstChild("Head")
+        if not lpHead then return end
+        
         local cameraPos = Camera.CFrame.Position
 
         for entity, box in pairs(ESP_Objects) do
-            if box.HasBeenLooted then continue end
 
             if typeof(entity) == "Instance" and not entity.Parent then
                 RemoveESP(entity)
@@ -796,16 +778,13 @@ local success, err = pcall(function()
             local char = box.Character or (typeof(entity) == "Instance" and entity:IsA("Player") and entity.Character) or entity
             
             local function HideVisuals()
+                box.CanBeAimlocked = false
                 if box.Highlight then 
                     box.Highlight.FillTransparency = 1
                     box.Highlight.OutlineTransparency = 1
                 end
-                if box.BoxFrame and box.BoxFrame.Visible then
-                    box.BoxFrame.Visible = false
-                end
-                if box.DistBillboard and box.DistBillboard.Enabled then 
-                    box.DistBillboard.Enabled = false 
-                end
+                if box.DistBillboard then box.DistBillboard.Enabled = false end
+                if box.BoxFrame then box.BoxFrame.Visible = false end
             end
 
             if not char or not char.Parent or char == lpChar then
@@ -816,11 +795,8 @@ local success, err = pcall(function()
             local isDead = IsEntityDead(char)
             local shouldProcess = false
             
-            if not isDead and ESP_Config.ESP_Players then
-                shouldProcess = true
-            elseif isDead and ESP_Config.ESP_Corpses then
-                shouldProcess = true
-            end
+            if not isDead and ESP_Config.ESP_Players then shouldProcess = true
+            elseif isDead and ESP_Config.ESP_Corpses then shouldProcess = true end
 
             if not shouldProcess then
                 HideVisuals()
@@ -841,22 +817,16 @@ local success, err = pcall(function()
             local rootPos = rootPart.Position
             local directionToTarget = rootPos - cameraPos
             local studsDist = directionToTarget.Magnitude
-            local distMeter = math.floor(studsDist / 3.571428)
-            
-            -- FIX LOOT DISTANCE: Naikkan menjadi 5 Meter (17.85 Studs)
-            local isCloseRange = (studsDist <= 3.57) -- 1m untuk Chams hidup
-            local isLootRange = (studsDist <= 17.85) -- 5m untuk mayat
+            local distMeter = math.floor(studsDist / 3.5714285714)
+            local isCloseRange = (studsDist <= 3.5714285714)
+            local isLootRange = (studsDist <= 17.8571428571) -- 5 meter
 
             local shouldRender = false
             if isDead then
-                shouldRender = (studsDist <= 267.85) -- 75 Meter
+                shouldRender = (studsDist <= 267.8571428571) -- Max 75m untuk mayat
             else
                 local isPlayerChar = Players:GetPlayerFromCharacter(char) ~= nil
-                if isPlayerChar then
-                    shouldRender = (studsDist <= 3571.4) -- Player: 1000m
-                else
-                    shouldRender = (studsDist <= 1607.1) -- AI: 450m
-                end
+                if isPlayerChar then shouldRender = (studsDist <= 3571.4285714286) else shouldRender = (studsDist <= 1607.1428571429) end
             end
 
             if not shouldRender then
@@ -864,61 +834,57 @@ local success, err = pcall(function()
                 continue
             end
 
-            -- FIX LOOT & FORGET: Hancurkan ESP mayat di jarak <= 5 Meter
-            if isDead and isLootRange then
-                box.HasBeenLooted = true
-                if box.Highlight then box.Highlight:Destroy(); box.Highlight = nil end
-                if box.DistBillboard then box.DistBillboard:Destroy(); box.DistBillboard = nil end
-                continue
-            end
-
+            local finalColor = COLOR_BLOCKED
+            local textColor = COLOR_BLOCKED
+            local isTeam = false
+            
             if isDead then
-                if box.Highlight then 
-                    box.Highlight:Destroy()
-                    box.Highlight = nil 
-                end
+                box.CanBeAimlocked = false
+                if box.Highlight then box.Highlight:Destroy() box.Highlight = nil end
                 
                 if box.DistBillboard then
-                    if not box.DistBillboard.Enabled then box.DistBillboard.Enabled = true end
-                    if box.BoxFrame and not box.BoxFrame.Visible then box.BoxFrame.Visible = true end
+                    if box.BoxFrame then box.BoxFrame.Visible = true end
                     if box.DistLabel then
                         box.DistLabel.Text = string.format("[ Corpse: %d m ]", distMeter)
                         box.DistLabel.TextColor3 = COLOR_DEAD
                     end
                 end
             else
-                local isTeam = IsTeammate(char)
-                local finalColor = COLOR_BLOCKED
-                local textColor = COLOR_BLOCKED
+                local targetPart = char:FindFirstChild("Head") or rootPart
+                local visStatus, canLock = checkTargetVisibility(targetPart, char)
+                isTeam = IsTeammate(char)
                 
                 if isTeam then
                     finalColor = ESP_Config.Color
-                    textColor = (box.VisStatus == "Blocked") and COLOR_TEAM_BLOCKED or COLOR_TEAM_VISIBLE
+                    textColor = (visStatus == "Blocked") and COLOR_TEAM_BLOCKED or COLOR_TEAM_VISIBLE
+                    box.CanBeAimlocked = false
                 else
-                    finalColor = (box.VisStatus == "Visible") and COLOR_VISIBLE or COLOR_BLOCKED
-                    textColor = finalColor
+                    if canLock then
+                        finalColor = COLOR_VISIBLE
+                        textColor = COLOR_VISIBLE
+                    else
+                        finalColor = COLOR_BLOCKED
+                        textColor = COLOR_BLOCKED
+                    end
+                    box.CanBeAimlocked = canLock
                 end
-                
-                if box.BoxFrame and box.BoxFrame.Visible then
-                    box.BoxFrame.Visible = false
-                end
+
+                if box.BoxFrame then box.BoxFrame.Visible = false end
 
                 if box.Highlight then
                     if isCloseRange then
                         box.Highlight.FillTransparency = 1
                         box.Highlight.OutlineTransparency = 1
                     else
-                        box.Highlight.FillTransparency = 0.5
+                        box.Highlight.FillColor = finalColor
+                        box.Highlight.OutlineColor = finalColor
                         box.Highlight.OutlineTransparency = 0
-                        if box.Highlight.FillColor ~= finalColor then
-                            box.Highlight.FillColor = finalColor
-                            box.Highlight.OutlineColor = finalColor
-                        end
+                        box.Highlight.FillTransparency = 0.5
                     end
                 end
 
                 if box.DistBillboard then
-                    if not box.DistBillboard.Enabled then box.DistBillboard.Enabled = true end
+                    box.DistBillboard.Enabled = true
                     if box.DistLabel then
                         box.DistLabel.Text = string.format("[%d m]", distMeter)
                         box.DistLabel.TextColor3 = textColor
@@ -930,41 +896,49 @@ local success, err = pcall(function()
         -- // Aimlock Logic
         if ESP_Config.AimLock and IsAiming then
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
+            
             if potentialTargetChar then
                 local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
+                
                 if tHead then
-                    CurrentTargetEntity = potentialTargetEntity
-                    CurrentTargetChar = potentialTargetChar
+                    local visStatus, canLock = checkTargetVisibility(tHead, potentialTargetChar)
+                    local isDead = IsEntityDead(potentialTargetChar)
+                    local isTeammate = IsTeammate(potentialTargetChar)
                     
-                    local targetPos = tHead.Position
-                    local dirToTarget = targetPos - cameraPos
-                    local studsDist = dirToTarget.Magnitude
-                    
-                    local bulletSpeed = GetBulletSpeed()
-                    if bulletSpeed <= 0 then bulletSpeed = 800 end 
-                    
-                    local bulletSpeedStuds = bulletSpeed * 3.571428
-                    local timeToTarget = studsDist / bulletSpeedStuds
-                    
-                    -- FIX AIMLOCK CRASH: Filter NaN & Infinity Velocity (Penyebab Crash Akhir Game)
-                    local currentVelocity = tHead.AssemblyLinearVelocity
-                    if typeof(currentVelocity) ~= "Vector3" or currentVelocity.X ~= currentVelocity.X or currentVelocity.Y ~= currentVelocity.Y or currentVelocity.Z ~= currentVelocity.Z or math.abs(currentVelocity.X) == math.huge or math.abs(currentVelocity.Y) == math.huge or math.abs(currentVelocity.Z) == math.huge then
-                        currentVelocity = Vector3.new(0, 0, 0)
-                    end
-                    
-                    local dropCompensation = 0
-                    if not ESP_Config.GunMods then
-                        dropCompensation = (0.5 * 35 * (timeToTarget * timeToTarget))
-                    end
-                    
-                    local finalAimPos = targetPos + (currentVelocity * timeToTarget) + Vector3.new(0, dropCompensation, 0)
-                    local screenAimPos, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
-                    
-                    if onScreenAim then
-                        -- FIX AIMLOCK CRASH: Bungkus Kamera Lerp dengan pcall
-                        pcall(function()
+                    if canLock and not isDead and not isTeammate then
+                        CurrentTargetEntity = potentialTargetEntity
+                        CurrentTargetChar = potentialTargetChar
+                        
+                        local targetPos = tHead.Position
+                        local dirToTarget = targetPos - cameraPos
+                        local studsDist = dirToTarget.Magnitude
+                        
+                        local bulletSpeedMS = GetBulletSpeed()
+                        if bulletSpeedMS <= 0 then bulletSpeedMS = 800 end
+                        
+                        local bulletSpeedStuds = bulletSpeedMS * 3.5714285714
+                        local dragFactor = 1 + (studsDist / 1500)
+                        local realTime = (studsDist / bulletSpeedStuds) * dragFactor
+                        
+                        local currentVelocity = tHead.AssemblyLinearVelocity
+                        if currentVelocity.X ~= currentVelocity.X then
+                            currentVelocity = Vector3.new(0, 0, 0)
+                        end
+                        
+                        local dropCompensation = 0
+                        if not ESP_Config.GunMods then
+                            dropCompensation = (0.5 * workspace.Gravity * (realTime * realTime))
+                        end
+                        
+                        local finalAimPos = targetPos + (currentVelocity * realTime) + Vector3.new(0, dropCompensation, 0)
+                        local screenAimPos, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
+                        
+                        if onScreenAim then
                             Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(cameraPos, finalAimPos), 0.6)
-                        end)
+                        end
+                    else
+                        CurrentTargetEntity = nil
+                        CurrentTargetChar = nil
                     end
                 else
                     CurrentTargetEntity = nil
@@ -982,6 +956,7 @@ local success, err = pcall(function()
         -- MODULE 10: INITIAL CONNECTIONS & PURGE     --
         ================================================
     ]]
+
     for _, p in ipairs(Players:GetPlayers()) do 
         if p ~= LocalPlayer then CreateESP(p, true) end
     end
@@ -993,15 +968,21 @@ local success, err = pcall(function()
     local function PurgeAllGarbageMemory()
         RunService:UnbindFromRenderStep("RomeoZach_Render")
         for entity, box in pairs(ESP_Objects) do RemoveESP(entity) end
+        
         table.clear(ESP_Objects)
         table.clear(ignoreList)
         table.clear(CrosshairLines)
+        
         CurrentTargetEntity = nil
         CurrentTargetChar = nil
         
         if targetGui:FindFirstChild("RomeoZach_Ui") then 
-            pcall(function() targetGui.RomeoZach_Ui:Destroy() end)
+            pcall(function()
+                local ui = targetGui:FindFirstChild("RomeoZach_Ui")
+                if ui then ui:Destroy() end
+            end)
         end
+        
         setmetatable(ESP_Objects, nil)
         collectgarbage("collect")
     end

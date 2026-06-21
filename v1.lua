@@ -624,7 +624,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
+--[[
         ================================================
         --     MODULE 8: MISCELLANEOUS SCANNER        --
         ================================================
@@ -650,6 +650,7 @@ local success, err = pcall(function()
 
     task.spawn(function()
         while task.wait(3) do
+            -- [1] MODIFIKASI RECOIL & AMMO
             local ammoTypes = ReplicatedStorage:FindFirstChild("AmmoTypes")
             if ammoTypes then
                 for _, ammo in pairs(ammoTypes:GetChildren()) do
@@ -676,21 +677,29 @@ local success, err = pcall(function()
                 end
             end
             
+            -- [2] TOGGLE PERFORMANCE MODE AWAL
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
                 InitialPerformanceBoost()
                 
                 if ESP_Config.PerformanceMode then
-                    for _, obj in pairs(Lighting:GetDescendants()) do
-                        if obj:IsA("PostEffect") or obj:IsA("Clouds") then
-                            if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
-                        elseif obj:IsA("Atmosphere") then
-                            if not TextureBackups[obj] then TextureBackups[obj] = {Density = obj.Density} end
-                            obj.Density = 0
+                    -- Eksekusi mati semua efek di Lighting & Kamera saat pertama kali dinyalakan
+                    local targetFolders = {Lighting, Camera}
+                    for _, folder in ipairs(targetFolders) do
+                        for _, obj in pairs(folder:GetDescendants()) do
+                            if obj:IsA("PostEffect") or obj:IsA("Clouds") or obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
+                                if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
+                                if obj:IsA("BlurEffect") then obj.Size = 0 end
+                            elseif obj:IsA("Atmosphere") then
+                                if not TextureBackups[obj] then TextureBackups[obj] = {Density = obj.Density} end
+                                obj.Density = 0
+                            end
                         end
                     end
                 else
-                    Lighting.FogEnd = LightingBackups.FogEnd Lighting.FogStart = LightingBackups.FogStart
+                    -- Kembalikan normal saat dimatikan
+                    Lighting.FogEnd = LightingBackups.FogEnd 
+                    Lighting.FogStart = LightingBackups.FogStart
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
                     end
@@ -698,9 +707,25 @@ local success, err = pcall(function()
                 end
             end
             
+            -- [3] PENJAGAAN KETAT PERFORMANCE MODE TIAP 3 DETIK
             if ESP_Config.PerformanceMode then
-                Lighting.GlobalShadows = false Lighting.FogEnd = 999999 Lighting.FogStart = 999999 Lighting.Brightness = 2.5
-                Lighting.Ambient = Color3.fromRGB(140, 145, 155) Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
+                Lighting.GlobalShadows = false 
+                Lighting.FogEnd = 999999 
+                Lighting.FogStart = 999999 
+                Lighting.Brightness = 2.5
+                Lighting.Ambient = Color3.fromRGB(140, 145, 155) 
+                Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
+                
+                -- Sapu bersih paksa (anti-blur saat bidik/kena tembak/low stamina)
+                local targetFolders = {Lighting, Camera}
+                for _, folder in ipairs(targetFolders) do
+                    for _, obj in pairs(folder:GetDescendants()) do
+                        if obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
+                            obj.Enabled = false
+                            if obj:IsA("BlurEffect") then obj.Size = 0 end
+                        end
+                    end
+                end
             end
         end
     end)

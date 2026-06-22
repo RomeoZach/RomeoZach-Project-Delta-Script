@@ -16,11 +16,7 @@ end)
 
 local success, err = pcall(function()
 
-    --[[
-        ================================================
-        --        MODULE 1: CORE CONFIG & UI SETUP    --
-        ================================================
-    ]]
+    --[[ MODULE 1: CORE CONFIG & UI SETUP ]]
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
@@ -32,18 +28,11 @@ local success, err = pcall(function()
     local Camera = workspace.CurrentCamera
 
     local ESP_Config = {
-        AimLock = false,
-        ESP_Players = true,
-        ESP_Corpses = false,
-        BulletTracers = false,
-        Crosshair = false,
-        VisCheck = true,
-        GunMods = false, 
-        PerformanceMode = false,
-        Color = Color3.fromRGB(255, 255, 255),
-        TextSize = 13,
-        Font = Enum.Font.GothamBold,
-        FovRadius = 300
+        AimLock = false, ESP_Players = true, ESP_Corpses = false,
+        BulletTracers = false, Crosshair = false, VisCheck = true,
+        GunMods = false, PerformanceMode = false,
+        Color = Color3.fromRGB(255, 255, 255), TextSize = 13,
+        Font = Enum.Font.GothamBold, FovRadius = 300
     }
 
     local COLOR_VISIBLE = ESP_Config.Color
@@ -63,13 +52,9 @@ local success, err = pcall(function()
     local LastPerformanceState = false
 
     local LightingBackups = {
-        GlobalShadows = Lighting.GlobalShadows,
-        FogEnd = Lighting.FogEnd,
-        FogStart = Lighting.FogStart,
-        Ambient = Lighting.Ambient,
-        OutdoorAmbient = Lighting.OutdoorAmbient,
-        Brightness = Lighting.Brightness,
-        FogColor = Lighting.FogColor
+        GlobalShadows = Lighting.GlobalShadows, FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart,
+        Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient,
+        Brightness = Lighting.Brightness, FogColor = Lighting.FogColor
     }
 
     local WallbangableMaterials = {
@@ -92,36 +77,25 @@ local success, err = pcall(function()
     if oldUi then pcall(function() oldUi:Destroy() end) task.wait(0.2) end
 
     local RomeoZachGui = Instance.new("ScreenGui")
-    RomeoZachGui.Name = "RomeoZach_Ui"
-    RomeoZachGui.ResetOnSpawn = false
-    RomeoZachGui.DisplayOrder = 999999
-    RomeoZachGui.IgnoreGuiInset = true
-    RomeoZachGui.Parent = targetGui
+    RomeoZachGui.Name = "RomeoZach_Ui" RomeoZachGui.ResetOnSpawn = false RomeoZachGui.DisplayOrder = 999999 RomeoZachGui.IgnoreGuiInset = true RomeoZachGui.Parent = targetGui
 
     local chX = Instance.new("Frame", RomeoZachGui)
-    chX.Size = UDim2.new(0, 14, 0, 2) chX.Position = UDim2.new(0.5, -7, 0.5, -1)
-    chX.BackgroundColor3 = ESP_Config.Color chX.BorderSizePixel = 0 chX.Visible = ESP_Config.Crosshair
+    chX.Size = UDim2.new(0, 14, 0, 2) chX.Position = UDim2.new(0.5, -7, 0.5, -1) chX.BackgroundColor3 = ESP_Config.Color chX.BorderSizePixel = 0 chX.Visible = ESP_Config.Crosshair
     local strokeX = Instance.new("UIStroke", chX) strokeX.Thickness = 1 table.insert(CrosshairLines, chX)
 
     local chY = Instance.new("Frame", RomeoZachGui)
-    chY.Size = UDim2.new(0, 2, 0, 14) chY.Position = UDim2.new(0.5, -1, 0.5, -7)
-    chY.BackgroundColor3 = ESP_Config.Color chY.BorderSizePixel = 0 chY.Visible = ESP_Config.Crosshair
+    chY.Size = UDim2.new(0, 2, 0, 14) chY.Position = UDim2.new(0.5, -1, 0.5, -7) chY.BackgroundColor3 = ESP_Config.Color chY.BorderSizePixel = 0 chY.Visible = ESP_Config.Crosshair
     local strokeY = Instance.new("UIStroke", chY) strokeY.Thickness = 1 table.insert(CrosshairLines, chY)
 
     local MainFrame = Instance.new("Frame", RomeoZachGui)
     MainFrame.Name = "MainFrame" MainFrame.Size = UDim2.new(0, 480, 0, 250) 
-    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -125)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18) MainFrame.BackgroundTransparency = 0.15
-    MainFrame.BorderSizePixel = 0 MainFrame.Active = true MainFrame.Draggable = true
+    MainFrame.Position = UDim2.new(0.5, -240, 0.5, -125) MainFrame.BackgroundColor3 = Color3.fromRGB(15, 16, 18) MainFrame.BackgroundTransparency = 0.15 MainFrame.BorderSizePixel = 0 MainFrame.Active = true MainFrame.Draggable = true
 
     local cornerMain = Instance.new("UICorner", MainFrame) cornerMain.CornerRadius = UDim.new(0, 8)
-    local MainStroke = Instance.new("UIStroke", MainFrame)
-    MainStroke.Thickness = 1 MainStroke.Color = Color3.fromRGB(45, 48, 53) MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    local MainStroke = Instance.new("UIStroke", MainFrame) MainStroke.Thickness = 1 MainStroke.Color = Color3.fromRGB(45, 48, 53) MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     local Header = Instance.new("TextLabel", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1
-    Header.Text = "Project Delta V8 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245)
-    Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
+    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
 
     local ContainerUI = Instance.new("Frame", MainFrame)
     ContainerUI.Size = UDim2.new(1, -20, 1, -45) ContainerUI.Position = UDim2.new(0, 10, 0, 35) ContainerUI.BackgroundTransparency = 1
@@ -130,28 +104,18 @@ local success, err = pcall(function()
     UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10) UIGridLayout.CellSize = UDim2.new(0.5, -5, 0, 40)
 
     local function CreateToggle(labelText, configKey)
-        local Frame = Instance.new("Frame", ContainerUI)
-        Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27) Frame.BorderSizePixel = 0
+        local Frame = Instance.new("Frame", ContainerUI) Frame.BackgroundColor3 = Color3.fromRGB(22, 24, 27) Frame.BorderSizePixel = 0
         local cornerFrame = Instance.new("UICorner", Frame) cornerFrame.CornerRadius = UDim.new(0, 6)
 
-        local Label = Instance.new("TextLabel", Frame)
-        Label.Size = UDim2.new(0.65, 0, 1, 0) Label.Position = UDim2.new(0, 10, 0, 0) Label.BackgroundTransparency = 1
-        Label.Text = labelText Label.TextColor3 = Color3.fromRGB(200, 200, 205)
-        Label.TextSize = 12 Label.Font = Enum.Font.Gotham Label.TextXAlignment = Enum.TextXAlignment.Left
+        local Label = Instance.new("TextLabel", Frame) Label.Size = UDim2.new(0.65, 0, 1, 0) Label.Position = UDim2.new(0, 10, 0, 0) Label.BackgroundTransparency = 1 Label.Text = labelText Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 12 Label.Font = Enum.Font.Gotham Label.TextXAlignment = Enum.TextXAlignment.Left
 
-        local Track = Instance.new("Frame", Frame)
-        Track.Size = UDim2.new(0, 40, 0, 20) Track.Position = UDim2.new(1, -50, 0.5, -10)
-        Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
+        local Track = Instance.new("Frame", Frame) Track.Size = UDim2.new(0, 40, 0, 20) Track.Position = UDim2.new(1, -50, 0.5, -10) Track.BackgroundColor3 = ESP_Config[configKey] and ESP_Config.Color or Color3.fromRGB(40, 43, 48)
         local cornerTrack = Instance.new("UICorner", Track) cornerTrack.CornerRadius = UDim.new(1, 0)
 
-        local Knob = Instance.new("Frame", Track)
-        Knob.Size = UDim2.new(0, 16, 0, 16)
-        local knobActivePos = UDim2.new(1, -18, 0.5, -8) local knobInactivePos = UDim2.new(0, 2, 0.5, -8)
-        Knob.Position = ESP_Config[configKey] and knobActivePos or knobInactivePos Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        local Knob = Instance.new("Frame", Track) Knob.Size = UDim2.new(0, 16, 0, 16) local knobActivePos = UDim2.new(1, -18, 0.5, -8) local knobInactivePos = UDim2.new(0, 2, 0.5, -8) Knob.Position = ESP_Config[configKey] and knobActivePos or knobInactivePos Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         local cornerKnob = Instance.new("UICorner", Knob) cornerKnob.CornerRadius = UDim.new(1, 0)
 
-        local Btn = Instance.new("TextButton", Track)
-        Btn.Size = UDim2.new(1, 0, 1, 0) Btn.BackgroundTransparency = 1 Btn.Text = ""
+        local Btn = Instance.new("TextButton", Track) Btn.Size = UDim2.new(1, 0, 1, 0) Btn.BackgroundTransparency = 1 Btn.Text = ""
 
         Btn.MouseButton1Click:Connect(function()
             ESP_Config[configKey] = not ESP_Config[configKey]
@@ -169,11 +133,7 @@ local success, err = pcall(function()
     CreateToggle("Yellow Bullet Tracers", "BulletTracers") CreateToggle("Tiny Center Crosshair", "Crosshair")
     CreateToggle("No Recoil & No Spread", "GunMods") CreateToggle("Performance Mode", "PerformanceMode")
 
-    --[[
-        ================================================
-        --        MODULE 2: INPUT & UTILITIES         --
-        ================================================
-    ]]
+    --[[ MODULE 2: INPUT & UTILITIES ]]
     UserInputService.InputBegan:Connect(function(input, gp)
         if input.KeyCode == Enum.KeyCode.RightShift and not gp then MainFrame.Visible = not MainFrame.Visible end
         if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = true end
@@ -195,9 +155,7 @@ local success, err = pcall(function()
                 ["vss"] = 292, ["mp5"] = 400, ["ump"] = 285, ["vector"] = 320, ["mac"] = 355, ["glock"] = 375,
                 ["m9"] = 380, ["saiga"] = 400
             }
-            for key, vel in pairs(pdWeapons) do
-                if toolName:find(key) then return vel end
-            end
+            for key, vel in pairs(pdWeapons) do if toolName:find(key) then return vel end end
             local st = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings") or tool:FindFirstChild("Stats")
             if st and st:IsA("ModuleScript") then
                 local s, data = pcall(require, st)
@@ -216,7 +174,6 @@ local success, err = pcall(function()
         end
         local nameLower = string.lower(char.Name)
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or nameLower:find("body") then return true end
-        -- Deteksi khusus Ragdoll Player (Punya Head tapi tak punya Humanoid)
         if char:IsA("Model") and char:FindFirstChild("Head") and char:FindFirstChild("HumanoidRootPart") == nil then return true end
         return false
     end
@@ -228,11 +185,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
-        ================================================
-        --   MODULE 3: OPTIMIZED VISIBILITY ENGINE    --
-        ================================================
-    ]]
+    --[[ MODULE 3: OPTIMIZED VISIBILITY ENGINE ]]
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
         local origin = Camera.CFrame.Position
@@ -252,7 +205,8 @@ local success, err = pcall(function()
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 12 then return "Blocked", false end 
+            -- FIX FREEZE: Limit Raycast penetration to 3 (Max)
+            if loopCounter >= 3 then return "Blocked", false end 
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
@@ -292,6 +246,8 @@ local success, err = pcall(function()
                     if not canLock then continue end
 
                     local studsDist = (origin - head.Position).Magnitude
+                    
+                    -- FIX JARAK
                     if box.IsPlayer and studsDist > 5357.1429 then continue end
                     if not box.IsPlayer and studsDist > 2321.4286 then continue end
 
@@ -309,11 +265,7 @@ local success, err = pcall(function()
         return bestEntity, bestChar
     end
 
-    --[[
-        ================================================
-        -- MODULE 4: ESP MANAGER (KASTA CHAMS & BOX)  --
-        ================================================
-    ]]
+    --[[ MODULE 4: ESP MANAGER ]]
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
             local box = ESP_Objects[entity]
@@ -343,7 +295,6 @@ local success, err = pcall(function()
 
             box.Character = char
             
-            -- STRATEGI ANTI-LAG: Highlight 3D (Chams) HANYA untuk pemain asli!
             if isPlayer then
                 local hl = Instance.new("Highlight")
                 hl.FillColor = COLOR_BLOCKED hl.OutlineColor = COLOR_BLOCKED
@@ -359,7 +310,6 @@ local success, err = pcall(function()
             distBb.Adornee = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
             distBb.Parent = char box.DistBillboard = distBb
             
-            -- Box 2D: Digunakan oleh AI (saat hidup) DAN semua entitas (saat mati)
             local boxFrame = Instance.new("Frame", distBb)
             boxFrame.Size = UDim2.new(1, 0, 1, -20) boxFrame.BackgroundTransparency = 1 boxFrame.Visible = false
             local boxStroke = Instance.new("UIStroke", boxFrame)
@@ -380,11 +330,7 @@ local success, err = pcall(function()
         ESP_Objects[entity] = box
     end
 
-    --[[
-        ================================================
-        --        MODULE 5: SCANNER UTILITIES         --
-        ================================================
-    ]]
+    --[[ MODULE 5: SCANNER UTILITIES ]]
     local function IsValidEntity(obj)
         if not obj:IsA("Model") then return false end
         if obj.Name == LocalPlayer.Name or (LocalPlayer.Character and obj == LocalPlayer.Character) then return false end
@@ -407,11 +353,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[
-        ================================================
-        --  MODULE 6: THROTTLED ENTITY SCANNER THREAD --
-        ================================================
-    ]]
+    --[[ MODULE 6: THROTTLED ENTITY SCANNER ]]
     local isEntityScanning = false
     task.spawn(function()
         while task.wait(1.5) do 
@@ -463,11 +405,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
-        ================================================
-        --     MODULE 8: MISCELLANEOUS SCANNER        --
-        ================================================
-    ]]
+    --[[ MODULE 8: MISCELLANEOUS SCANNER ]]
     local function InitialPerformanceBoost()
         pcall(function() Lighting.FogEnd = 999999 Lighting.FogStart = 999999 end)
         for _, obj in ipairs(Lighting:GetDescendants()) do
@@ -534,7 +472,6 @@ local success, err = pcall(function()
                 Lighting.GlobalShadows = false Lighting.FogEnd = 999999 Lighting.FogStart = 999999 Lighting.Brightness = 2.5
                 Lighting.Ambient = Color3.fromRGB(140, 145, 155) Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
                 
-                -- PEMBANTAI BLUR MUTLAK
                 local targetFolders = {Lighting, Camera}
                 for _, folder in ipairs(targetFolders) do
                     for _, obj in pairs(folder:GetDescendants()) do
@@ -548,11 +485,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
-        ================================================
-        --      MODULE 9: RENDER LOOP & AIMLOCK       --
-        ================================================
-    ]]
+    --[[ MODULE 9: RENDER LOOP & AIMLOCK ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
         local lpChar = LocalPlayer.Character
         if not lpChar then return end
@@ -593,14 +526,14 @@ local success, err = pcall(function()
 
             local shouldRender = false
             if isDead then
-                shouldRender = (studsDist <= 267.8571428571) -- 75m Jangkauan Mayat (Persistent)
+                shouldRender = (studsDist <= 267.8571428571)
             else
+                -- FIX JARAK RENDER
                 if box.IsPlayer then shouldRender = (studsDist <= 5357.1429) else shouldRender = (studsDist <= 2321.4286) end
             end
 
             if not shouldRender then HideVisuals(); continue end
 
-            -- LOGIKA KASTA RENDER (PLAYER CHAMS 3D vs AI BOX 2D vs CORPSE 2D)
             if isDead then
                 box.CanBeAimlocked = false
                 if box.Highlight then box.Highlight.FillTransparency = 1 box.Highlight.OutlineTransparency = 1 end
@@ -609,7 +542,7 @@ local success, err = pcall(function()
                     box.DistBillboard.Enabled = true
                     if box.BoxFrame then box.BoxFrame.Visible = true box.BoxStroke.Color = COLOR_DEAD end
                     if box.DistLabel then
-                        box.DistLabel.Text = string.format("[ %d m ]", distMeter) -- UI Minimalis Mayat
+                        box.DistLabel.Text = string.format("[ %d m ]", distMeter)
                         box.DistLabel.TextColor3 = COLOR_DEAD
                     end
                 end
@@ -623,7 +556,6 @@ local success, err = pcall(function()
                 box.CanBeAimlocked = (canLock and not isTeam)
 
                 if box.IsPlayer then
-                    -- PLAYER ASLI: Gunakan 3D Chams (Highlight), sembunyikan Box 2D
                     if box.BoxFrame then box.BoxFrame.Visible = false end
                     if box.Highlight then
                         if isCloseRange then
@@ -634,7 +566,6 @@ local success, err = pcall(function()
                         end
                     end
                 else
-                    -- AI BOT: Gunakan murni Box 2D, tidak ada Chams untuk hemat FPS
                     if box.Highlight then box.Highlight.FillTransparency = 1 box.Highlight.OutlineTransparency = 1 end
                     if box.BoxFrame then box.BoxFrame.Visible = true box.BoxStroke.Color = finalColor end
                 end
@@ -646,13 +577,12 @@ local success, err = pcall(function()
             end
         end 
 
-        -- // DUAL-TARGETING AIMLOCK LOGIC
         if ESP_Config.AimLock and IsAiming then
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
             
             if potentialTargetChar then
-                -- 1. VisCheck & Titik Tembak Menggunakan 'Head' (Instan Putih)
-                local tHead = potentialTargetChar:FindFirstChild("Head")
+                -- FIX AIMLOCK AI: Jangan hanya mencari Head, gunakan Fallback ke HumanoidRootPart
+                local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
                 if tHead then
                     local visStatus, canLock = checkTargetVisibility(tHead, potentialTargetChar)
                     local isDead = IsEntityDead(potentialTargetChar)
@@ -669,11 +599,9 @@ local success, err = pcall(function()
                         if bulletSpeedMS <= 0 then bulletSpeedMS = 800 end
                         local bulletSpeedStuds = bulletSpeedMS * 3.5714285714
                         
-                        -- Drag SVD Calibration (1200)
                         local dragFactor = 1 + (studsDist / 1200)
                         local realTime = (studsDist / bulletSpeedStuds) * dragFactor
                         
-                        -- 2. Prediksi Lari Menggunakan 'HumanoidRootPart' (Badan Stabil)
                         local targetRoot = potentialTargetChar:FindFirstChild("HumanoidRootPart")
                         local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
                         if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0, 0, 0) end
@@ -700,11 +628,7 @@ local success, err = pcall(function()
         end
     end)
 
-    --[[
-        ================================================
-        -- MODULE 10: INITIAL CONNECTIONS & PURGE     --
-        ================================================
-    ]]
+    --[[ MODULE 10: INITIAL CONNECTIONS & PURGE ]]
     for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then CreateESP(p, true) end end
     Players.PlayerAdded:Connect(function(p) if p ~= LocalPlayer then CreateESP(p, true) end end)
 

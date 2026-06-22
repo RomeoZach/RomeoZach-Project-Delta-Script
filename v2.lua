@@ -292,8 +292,8 @@ local success, err = pcall(function()
                     if not canLock then continue end
 
                     local studsDist = (origin - head.Position).Magnitude
-                    if box.IsPlayer and studsDist > 3571.4 then continue end
-                    if not box.IsPlayer and studsDist > 1607.1 then continue end
+                    if box.IsPlayer and studsDist > 5357.1429 then continue end
+                    if not box.IsPlayer and studsDist > 2321.4286 then continue end
 
                     local predictedPos = head.Position
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
@@ -595,7 +595,7 @@ local success, err = pcall(function()
             if isDead then
                 shouldRender = (studsDist <= 267.8571428571) -- 75m Jangkauan Mayat (Persistent)
             else
-                if box.IsPlayer then shouldRender = (studsDist <= 3571.4) else shouldRender = (studsDist <= 1607.1) end
+                if box.IsPlayer then shouldRender = (studsDist <= 5357.1429) else shouldRender = (studsDist <= 2321.4286) end
             end
 
             if not shouldRender then HideVisuals(); continue end

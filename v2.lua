@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|    PROJECT DELTA V8 ULTIMATE - PURE COMBAT (GOD-TIER OPTIMIZATION)         |--
+    --|    PROJECT DELTA V8 ULTIMATE - PURE COMBAT (DYNAMIC BALLISTICS)            |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -142,24 +142,23 @@ local success, err = pcall(function()
         if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = false end
     end)
 
+    -- MEMBONGKAR FILE SENJATA UNTUK KECEPATAN PELURU DINAMIS
     local function GetBulletSpeed()
         local defaultSpeed = 800
         local char = LocalPlayer.Character
         if not char then return defaultSpeed end
         local tool = char:FindFirstChildOfClass("Tool")
         if tool then
-            local toolName = tool.Name:lower()
-            local pdWeapons = {
-                ["mosin"] = 885, ["svd"] = 830, ["r700"] = 800, ["remington"] = 800, ["fal"] = 840, ["m4a1"] = 850,
-                ["akmn"] = 715, ["akm"] = 715, ["ak-74"] = 900, ["sks"] = 735, ["pkm"] = 825, ["as val"] = 295,
-                ["vss"] = 292, ["mp5"] = 400, ["ump"] = 285, ["vector"] = 320, ["mac"] = 355, ["glock"] = 375,
-                ["m9"] = 380, ["saiga"] = 400
-            }
-            for key, vel in pairs(pdWeapons) do if toolName:find(key) then return vel end end
-            local st = tool:FindFirstChild("Setting") or tool:FindFirstChild("WeaponSettings") or tool:FindFirstChild("Stats")
-            if st and st:IsA("ModuleScript") then
-                local s, data = pcall(require, st)
-                if s and type(data) == "table" then return data.MuzzleVelocity or data.BulletSpeed or defaultSpeed end
+            for _, desc in ipairs(tool:GetDescendants()) do
+                if desc:IsA("ModuleScript") then
+                    local s, data = pcall(require, desc)
+                    if s and type(data) == "table" then
+                        local dynamicSpeed = data.MuzzleVelocity or data.BulletSpeed or data.Velocity or data.Speed
+                        if dynamicSpeed and type(dynamicSpeed) == "number" then
+                            return dynamicSpeed
+                        end
+                    end
+                end
             end
         end
         return defaultSpeed
@@ -205,7 +204,6 @@ local success, err = pcall(function()
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            -- FIX FREEZE: Limit Raycast penetration to 3 (Max)
             if loopCounter >= 3 then return "Blocked", false end 
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
@@ -247,7 +245,6 @@ local success, err = pcall(function()
 
                     local studsDist = (origin - head.Position).Magnitude
                     
-                    -- FIX JARAK
                     if box.IsPlayer and studsDist > 5357.1429 then continue end
                     if not box.IsPlayer and studsDist > 2321.4286 then continue end
 
@@ -353,7 +350,7 @@ local success, err = pcall(function()
         return false
     end
 
-    --[[ MODULE 6: THROTTLED ENTITY SCANNER ]]
+    --[[ MODULE 6: THOROUGH ENTITY SCANNER ]]
     local isEntityScanning = false
     task.spawn(function()
         while task.wait(1.5) do 
@@ -375,30 +372,16 @@ local success, err = pcall(function()
 
                 local isPlayerChar = Players:GetPlayerFromCharacter(obj) ~= nil
                 if not isPlayerChar and not ESP_Objects[obj] then
-                    local isDead = IsEntityDead(obj)
-                    if (isDead and ESP_Config.ESP_Corpses) or (not isDead and ESP_Config.ESP_Players) then
-                        if IsValidEntity(obj) then CreateESP(obj, false) end
-                    end
+                    if IsValidEntity(obj) then CreateESP(obj, false) end
                 end
             end
 
             local loopCount = 0
-            for _, child in ipairs(workspace:GetChildren()) do
-                loopCount = loopCount + 1
-                if loopCount % 20 == 0 then task.wait(0.01) end
-                if child:IsA("Model") and child.Name ~= "DroppedItems" and child.Name ~= "Containers" and child.Name ~= "Terrain" and child.Name ~= "Camera" then
+            for _, child in ipairs(workspace:GetDescendants()) do
+                if child:IsA("Model") then
+                    loopCount = loopCount + 1
+                    if loopCount % 40 == 0 then task.wait(0.01) end
                     ScanEntity(child)
-                end
-            end
-
-            local aiZonesFolder = workspace:FindFirstChild("AiZones")
-            if aiZonesFolder then
-                for _, zone in ipairs(aiZonesFolder:GetChildren()) do
-                    for _, bot in ipairs(zone:GetChildren()) do
-                        loopCount = loopCount + 1
-                        if loopCount % 20 == 0 then task.wait(0.01) end
-                        if bot:IsA("Model") and bot:FindFirstChildOfClass("Humanoid") then ScanEntity(bot) end
-                    end
                 end
             end
             isEntityScanning = false
@@ -514,7 +497,7 @@ local success, err = pcall(function()
 
             if not shouldProcess then HideVisuals(); continue end
 
-            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart", true)
+            local rootPart = char:FindFirstChild("Head") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart", true)
             if not rootPart then HideVisuals(); continue end
 
             if box.DistBillboard and (not box.DistBillboard.Adornee or not box.DistBillboard.Adornee.Parent) then box.DistBillboard.Adornee = rootPart end
@@ -526,9 +509,8 @@ local success, err = pcall(function()
 
             local shouldRender = false
             if isDead then
-                shouldRender = (studsDist <= 267.8571428571)
+                shouldRender = (studsDist <= 357.1429)
             else
-                -- FIX JARAK RENDER
                 if box.IsPlayer then shouldRender = (studsDist <= 5357.1429) else shouldRender = (studsDist <= 2321.4286) end
             end
 
@@ -581,7 +563,6 @@ local success, err = pcall(function()
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
             
             if potentialTargetChar then
-                -- FIX AIMLOCK AI: Jangan hanya mencari Head, gunakan Fallback ke HumanoidRootPart
                 local tHead = potentialTargetChar:FindFirstChild("Head") or potentialTargetChar:FindFirstChild("HumanoidRootPart")
                 if tHead then
                     local visStatus, canLock = checkTargetVisibility(tHead, potentialTargetChar)

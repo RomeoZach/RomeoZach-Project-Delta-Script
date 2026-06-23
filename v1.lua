@@ -203,7 +203,7 @@ local function IsTeammate(char)
         return false
     end
 
-    --[[ MODULE 3: OPTIMIZED VISIBILITY ENGINE ]]
+--[[ MODULE 3: OPTIMIZED VISIBILITY ENGINE (ANTI-LAG & WALLBANG) ]]
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
         local origin = Camera.CFrame.Position
@@ -223,7 +223,7 @@ local function IsTeammate(char)
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 7 then return "Blocked", false end -- Naikkan jadi 7 lapis 
+            if loopCounter >= 4 then return "Blocked", false end -- Cukup 4 Lapis, ANTI FREEZE!
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
@@ -234,14 +234,19 @@ local function IsTeammate(char)
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
             if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
 
-            local mat = raycastResult.Material
+            -- JALAN PINTAS: Buang seluruh bangunan sekaligus!
+            local parentModel = hitInstance:FindFirstAncestorOfClass("Model")
+            local isWallbangMat = WallbangableMaterials[raycastResult.Material]
             local nameLow = hitInstance.Name:lower()
-            
-            local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
-            local isWallbangMat = WallbangableMaterials[mat]
-            local isWallbangName = (not isWallbangMat and not isNonSolid) and (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("prop") or nameLow:find("house") or nameLow:find("hut") or nameLow:find("shack") or nameLow:find("log")) or false
-            if isWallbangMat or isNonSolid or isWallbangName then table.insert(ignoreList, hitInstance)
-            else return "Blocked", false end
+            local parentNameLow = parentModel and parentModel.Name:lower() or ""
+
+            local isWallbangName = (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("glass") or nameLow:find("door") or nameLow:find("window") or nameLow:find("fence") or parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or parentNameLow:find("cabin") or parentNameLow:find("building"))
+
+            if isWallbangMat or isWallbangName or hitInstance.Transparency > 0 then
+                table.insert(ignoreList, parentModel or hitInstance)
+            else
+                return "Blocked", false
+            end
         end
     end
 
@@ -282,7 +287,7 @@ local function IsTeammate(char)
         end
         return bestEntity, bestChar
     end
-
+        
     --[[ MODULE 4: ESP MANAGER ]]
     local function RemoveESP(entity)
         if ESP_Objects[entity] then

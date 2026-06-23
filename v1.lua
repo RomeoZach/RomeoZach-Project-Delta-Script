@@ -8,7 +8,7 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|    PROJECT DELTA V8.1 ULTIMATE - PURE COMBAT (PERFECT HEADSHOT & OPTIMIZED)|--
+    --|    PROJECT DELTA V8.2 ULTIMATE - PURE COMBAT (ANTI-FREEZE BYPASS)          |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -95,7 +95,7 @@ local success, err = pcall(function()
     local MainStroke = Instance.new("UIStroke", MainFrame) MainStroke.Thickness = 1 MainStroke.Color = Color3.fromRGB(45, 48, 53) MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     local Header = Instance.new("TextLabel", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.1 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
+    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.2 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
 
     local ContainerUI = Instance.new("Frame", MainFrame)
     ContainerUI.Size = UDim2.new(1, -20, 1, -45) ContainerUI.Position = UDim2.new(0, 10, 0, 35) ContainerUI.BackgroundTransparency = 1
@@ -174,27 +174,20 @@ local success, err = pcall(function()
         return false
     end
 
-    -- FIX TEAMMATE DETECTION: Aggressive Fallbacks
-local function IsTeammate(char)
+    local function IsTeammate(char)
         if not char then return false end
         local targetPlayer = Players:GetPlayerFromCharacter(char)
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
-            
-            -- 1. Cek sistem Team resmi Roblox (Pastikan bukan nil)
             if targetPlayer.Team ~= nil and LocalPlayer.Team ~= nil then
                 if targetPlayer.Team == LocalPlayer.Team then return true end
             end
-            
-            -- 2. Cek Custom Faction/Squad (Project Delta)
             local tGroup = targetPlayer:FindFirstChild("Group") or targetPlayer:FindFirstChild("Squad") or targetPlayer:FindFirstChild("Faction")
             local mGroup = LocalPlayer:FindFirstChild("Group") or LocalPlayer:FindFirstChild("Squad") or LocalPlayer:FindFirstChild("Faction")
             
             if tGroup and mGroup then
                 local vTarget = tostring(tGroup.Value):lower()
                 local vMine = tostring(mGroup.Value):lower()
-                
-                -- Blokir kesalahpahaman jika belum punya tim ("none", "neutral", "0")
                 if vTarget == vMine and vTarget ~= "" and vTarget ~= "none" and vTarget ~= "neutral" and vTarget ~= "0" and vTarget ~= "nil" then
                     return true
                 end
@@ -203,7 +196,7 @@ local function IsTeammate(char)
         return false
     end
 
---[[ MODULE 3: OPTIMIZED VISIBILITY ENGINE (ANTI-LAG & WALLBANG) ]]
+    --[[ MODULE 3: OPTIMIZED VISIBILITY ENGINE (ANTI-LAG) ]]
     local function checkTargetVisibility(targetPart, targetChar)
         table.clear(ignoreList)
         local origin = Camera.CFrame.Position
@@ -223,7 +216,7 @@ local function IsTeammate(char)
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 4 then return "Blocked", false end -- Cukup 4 Lapis, ANTI FREEZE!
+            if loopCounter >= 4 then return "Blocked", false end
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
@@ -234,7 +227,6 @@ local function IsTeammate(char)
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return "Blocked", false end
             if hitInstance:IsDescendantOf(targetChar) then return "Visible", true end
 
-            -- JALAN PINTAS: Buang seluruh bangunan sekaligus!
             local parentModel = hitInstance:FindFirstAncestorOfClass("Model")
             local isWallbangMat = WallbangableMaterials[raycastResult.Material]
             local nameLow = hitInstance.Name:lower()
@@ -261,25 +253,26 @@ local function IsTeammate(char)
             if char and char ~= LocalPlayer.Character and char.Parent then
                 if IsTeammate(char) then continue end
                 
-                -- HARDFORCE: Cari Head untuk VisCheck, bukan RootPart.
                 local head = char:FindFirstChild("Head") or char:FindFirstChild("head")
                 if not head then continue end
                 
                 if not IsEntityDead(char) then
-                    local visStatus, canLock = checkTargetVisibility(head, char)
-                    if not canLock then continue end
-
                     local studsDist = (origin - head.Position).Magnitude
-                    
                     if box.IsPlayer and studsDist > 5357.1429 then continue end
                     if not box.IsPlayer and studsDist > 2321.4286 then continue end
 
+                    -- OPTIMALISASI 1: Cek posisi layar DULU. Jangan buang CPU untuk target di belakang kamera.
                     local predictedPos = head.Position
                     local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
+                    
                     if onScreen then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
+                        -- OPTIMALISASI 2: HANYA lakukan Raycast (Wallbang check) jika musuh ini lebih dekat ke crosshair!
                         if screenDist < shortestPixelDist then
-                            shortestPixelDist = screenDist; bestEntity = entity; bestChar = char
+                            local visStatus, canLock = checkTargetVisibility(head, char)
+                            if canLock then
+                                shortestPixelDist = screenDist; bestEntity = entity; bestChar = char
+                            end
                         end
                     end
                 end
@@ -287,7 +280,7 @@ local function IsTeammate(char)
         end
         return bestEntity, bestChar
     end
-        
+
     --[[ MODULE 4: ESP MANAGER ]]
     local function RemoveESP(entity)
         if ESP_Objects[entity] then
@@ -376,7 +369,7 @@ local function IsTeammate(char)
         return false
     end
 
-    --[[ MODULE 6: FIX FREEZE - TARGETED ENTITY SCANNER ]]
+    --[[ MODULE 6: TARGETED ENTITY SCANNER ]]
     local isEntityScanning = false
     task.spawn(function()
         while task.wait(1.5) do 
@@ -402,7 +395,6 @@ local function IsTeammate(char)
                 end
             end
 
-            -- Mengubah GetDescendants menjadi GetChildren pada folder tertentu untuk STOP Freeze.
             local foldersToScan = {workspace}
             if workspace:FindFirstChild("AiZones") then table.insert(foldersToScan, workspace.AiZones) end
             if workspace:FindFirstChild("Ignore") then table.insert(foldersToScan, workspace.Ignore) end
@@ -502,7 +494,7 @@ local function IsTeammate(char)
         end
     end)
 
-    --[[ MODULE 9: RENDER LOOP & AIMLOCK ]]
+    --[[ MODULE 9: RENDER LOOP & AIMLOCK (ANTI-FREEZE BYPASS) ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function(deltaTime)
         local lpChar = LocalPlayer.Character
         if not lpChar then return end
@@ -564,8 +556,16 @@ local function IsTeammate(char)
                 end
             else
                 local targetPart = char:FindFirstChild("Head") or rootPart
-                local visStatus, canLock = checkTargetVisibility(targetPart, char)
                 local isTeam = IsTeammate(char)
+                
+                -- OPTIMALISASI RENDER: Bypass Raycast jika musuh di luar jangkauan pandang monitor (Off-Screen)
+                local _, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                local canLock = false
+                
+                if onScreen then
+                    local visStatus, cL = checkTargetVisibility(targetPart, char)
+                    canLock = cL
+                end
                 
                 local finalColor = canLock and COLOR_VISIBLE or COLOR_BLOCKED
                 if isTeam then finalColor = canLock and COLOR_TEAM_VISIBLE or COLOR_TEAM_BLOCKED end
@@ -593,7 +593,6 @@ local function IsTeammate(char)
             end
         end 
 
-        -- FIX AIMLOCK: Hard Snap 100% Headshot
         if ESP_Config.AimLock and IsAiming then
             local potentialTargetEntity, potentialTargetChar = GetBestTargetInFOV()
             
@@ -609,7 +608,6 @@ local function IsTeammate(char)
                         CurrentTargetEntity = potentialTargetEntity
                         CurrentTargetChar = potentialTargetChar
                         
-                        -- ABSOLUTE HEAD BIAS: +0.15 Studs ke atas agar mutlak kena ubun-ubun
                         local targetPos = rawHead.Position + Vector3.new(0, 0.15, 0)
                         local studsDist = (targetPos - cameraPos).Magnitude
                         
@@ -632,7 +630,6 @@ local function IsTeammate(char)
                         local _, onScreenAim = Camera:WorldToViewportPoint(finalAimPos)
                         
                         if onScreenAim then
-                            -- HARD SNAP: Menghapus Lerp (Tarikan Lemot). Sekarang instan 100000% ngelock!
                             Camera.CFrame = CFrame.lookAt(cameraPos, finalAimPos)
                         end
                     else
@@ -665,4 +662,4 @@ local function IsTeammate(char)
 
 end)
 
-if not success then warn("[Project Delta V8.1 Error]: " .. tostring(err)) end
+if not success then warn("[Project Delta V8.2 Error]: " .. tostring(err)) end

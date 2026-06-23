@@ -175,16 +175,30 @@ local success, err = pcall(function()
     end
 
     -- FIX TEAMMATE DETECTION: Aggressive Fallbacks
-    local function IsTeammate(char)
+local function IsTeammate(char)
         if not char then return false end
         local targetPlayer = Players:GetPlayerFromCharacter(char)
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
-            if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then return true end
-            if targetPlayer.TeamColor and LocalPlayer.TeamColor and targetPlayer.TeamColor == LocalPlayer.TeamColor then return true end
+            
+            -- 1. Cek sistem Team resmi Roblox (Pastikan bukan nil)
+            if targetPlayer.Team ~= nil and LocalPlayer.Team ~= nil then
+                if targetPlayer.Team == LocalPlayer.Team then return true end
+            end
+            
+            -- 2. Cek Custom Faction/Squad (Project Delta)
             local tGroup = targetPlayer:FindFirstChild("Group") or targetPlayer:FindFirstChild("Squad") or targetPlayer:FindFirstChild("Faction")
             local mGroup = LocalPlayer:FindFirstChild("Group") or LocalPlayer:FindFirstChild("Squad") or LocalPlayer:FindFirstChild("Faction")
-            if tGroup and mGroup and tGroup.Value == mGroup.Value and tGroup.Value ~= "" then return true end
+            
+            if tGroup and mGroup then
+                local vTarget = tostring(tGroup.Value):lower()
+                local vMine = tostring(mGroup.Value):lower()
+                
+                -- Blokir kesalahpahaman jika belum punya tim ("none", "neutral", "0")
+                if vTarget == vMine and vTarget ~= "" and vTarget ~= "none" and vTarget ~= "neutral" and vTarget ~= "0" and vTarget ~= "nil" then
+                    return true
+                end
+            end
         end
         return false
     end
@@ -550,7 +564,7 @@ local success, err = pcall(function()
                 local isTeam = IsTeammate(char)
                 
                 local finalColor = canLock and COLOR_VISIBLE or COLOR_BLOCKED
-                if isTeam then finalColor = COLOR_TEAM_VISIBLE end
+                if isTeam then finalColor = canLock and COLOR_TEAM_VISIBLE or COLOR_TEAM_BLOCKED end
                 box.CanBeAimlocked = (canLock and not isTeam)
 
                 if box.IsPlayer then

@@ -223,7 +223,7 @@ local function IsTeammate(char)
         local loopCounter = 0
         while true do
             loopCounter = loopCounter + 1
-            if loopCounter >= 3 then return "Blocked", false end 
+            if loopCounter >= 7 then return "Blocked", false end -- Naikkan jadi 7 lapis 
 
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
@@ -239,8 +239,7 @@ local function IsTeammate(char)
             
             local isNonSolid = hitInstance.Transparency >= 0.8 or hitInstance.CanCollide == false
             local isWallbangMat = WallbangableMaterials[mat]
-            local isWallbangName = (not isWallbangMat and not isNonSolid) and (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("prop")) or false
-            
+            local isWallbangName = (not isWallbangMat and not isNonSolid) and (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("fabric") or nameLow:find("tent") or nameLow:find("glass") or nameLow:find("fence") or nameLow:find("wall") or nameLow:find("door") or nameLow:find("window") or nameLow:find("cover") or nameLow:find("barrier") or nameLow:find("concrete") or nameLow:find("prop") or nameLow:find("house") or nameLow:find("hut") or nameLow:find("shack") or nameLow:find("log")) or false
             if isWallbangMat or isNonSolid or isWallbangName then table.insert(ignoreList, hitInstance)
             else return "Blocked", false end
         end

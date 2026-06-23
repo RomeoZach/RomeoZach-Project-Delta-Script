@@ -133,7 +133,7 @@ local success, err = pcall(function()
     CreateToggle("Yellow Bullet Tracers", "BulletTracers") CreateToggle("Tiny Center Crosshair", "Crosshair")
     CreateToggle("No Recoil & No Spread", "GunMods") CreateToggle("Performance Mode", "PerformanceMode")
 
-    --[[ MODULE 2: INPUT & UTILITIES ]]
+--[[ MODULE 2: INPUT & UTILITIES ]]
     UserInputService.InputBegan:Connect(function(input, gp)
         if input.KeyCode == Enum.KeyCode.RightShift and not gp then MainFrame.Visible = not MainFrame.Visible end
         if input.UserInputType == Enum.UserInputType.MouseButton2 then IsAiming = true end
@@ -174,55 +174,31 @@ local success, err = pcall(function()
         return false
     end
 
-        local function IsTeammate(char)
+    local function IsTeammate(char)
         if not char then return false end
         local targetPlayer = Players:GetPlayerFromCharacter(char)
         
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
             
-            -- 1. Cek Tim Standar Roblox
-            if targetPlayer.Team ~= nil and LocalPlayer.Team ~= nil then
-                if targetPlayer.Team == LocalPlayer.Team then return true end
-            end
+            -- 1. Cek Tim Resmi Roblox
+            if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then return true end
             
-            -- 2. Cek Atribut Tersembunyi (Sistem Squad Project Delta)
-            local function checkAttributes(obj1, obj2)
-                if not obj1 or not obj2 then return false end
-                local attrs = {"Squad", "Team", "Faction", "Group", "Party", "TeamId"}
-                for _, attr in ipairs(attrs) do
-                    local val1 = obj1:GetAttribute(attr)
-                    local val2 = obj2:GetAttribute(attr)
-                    if val1 ~= nil and val2 ~= nil and val1 == val2 and val1 ~= 0 and val1 ~= "" then
+            -- 2. Cek Sistem Squad Khusus (Filter Sangat Ketat)
+            local names = {"Squad", "Group", "Party", "Faction"}
+            for _, name in ipairs(names) do
+                local vTarget = targetPlayer:FindFirstChild(name) or char:FindFirstChild(name)
+                local vMine = LocalPlayer:FindFirstChild(name) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
+                
+                if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") then
+                    local sTarget, sMine = tostring(vTarget.Value), tostring(vMine.Value)
+                    
+                    -- HANYA anggap tim JIKA nama squad sama, TIDAK KOSONG, dan hurufnya lebih dari 2
+                    if sTarget == sMine and #sTarget > 2 and sTarget:lower() ~= "none" and sTarget:lower() ~= "neutral" then
                         return true
                     end
                 end
-                return false
             end
-            
-            if checkAttributes(targetPlayer, LocalPlayer) then return true end
-            if checkAttributes(char, LocalPlayer.Character) then return true end
-            
-            -- 3. Cek Folder/Value di dalam Player & Karakter
-            local function checkValues(parent1, parent2)
-                if not parent1 or not parent2 then return false end
-                local names = {"Group", "Squad", "Faction", "Team", "Party"}
-                for _, name in ipairs(names) do
-                    local v1 = parent1:FindFirstChild(name)
-                    local v2 = parent2:FindFirstChild(name)
-                    if v1 and v2 and v1:IsA("ValueBase") and v2:IsA("ValueBase") then
-                        local str1 = tostring(v1.Value):lower()
-                        local str2 = tostring(v2.Value):lower()
-                        if str1 == str2 and str1 ~= "" and str1 ~= "none" and str1 ~= "neutral" and str1 ~= "0" and str1 ~= "nil" then
-                            return true
-                        end
-                    end
-                end
-                return false
-            end
-            
-            if checkValues(targetPlayer, LocalPlayer) then return true end
-            if checkValues(char, LocalPlayer.Character) then return true end
         end
         return false
     end

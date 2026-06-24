@@ -8,8 +8,8 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|    PROJECT DELTA V8.4 ULTIMATE - STATE CACHE APEX EDITION                  |--
-    --|    Features: Dynamic Vertical Offset, Auto-Sync UI, Zero-Lag Architecture  |--
+    --|    PROJECT DELTA V8.5 ULTIMATE - STATE CACHE REMEDIAL EDITION              |--
+    --|    Features: Smart Aim Math, Minimalist UI, Zero-Lag Architecture          |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -88,7 +88,7 @@ local success, err = pcall(function()
     local MainStroke = Instance.new("UIStroke", MainFrame) MainStroke.Thickness = 1 MainStroke.Color = Color3.fromRGB(45, 48, 53) MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     local Header = Instance.new("TextLabel", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.4 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
+    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.5 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
 
     local ContainerUI = Instance.new("Frame", MainFrame)
     ContainerUI.Size = UDim2.new(1, -20, 1, -45) ContainerUI.Position = UDim2.new(0, 10, 0, 35) ContainerUI.BackgroundTransparency = 1
@@ -313,10 +313,14 @@ local success, err = pcall(function()
                 
                 local categoryStr = isDead and "DEAD" or (isPlayer and "PLAYER" or "AI")
                 
-                -- Kalkulasi Offset Dinamis berdasarkan Kategori
+                -- [REMEDIAL 3] Smart AimLock Math: Jika ada kepala, VOffset = 0. Jika RootPart, gunakan dinamis.
                 local dynamicVOffset = 0
-                if categoryStr == "PLAYER" then dynamicVOffset = 1.5
-                elseif categoryStr == "AI" then dynamicVOffset = 1.8 end
+                if head and targetPart == head then
+                    dynamicVOffset = 0
+                else
+                    if categoryStr == "PLAYER" then dynamicVOffset = 1.5
+                    elseif categoryStr == "AI" then dynamicVOffset = 1.8 end
+                end
                 
                 if not isDead then
                     isVisible = checkTargetVisibility(targetPart, char)
@@ -337,7 +341,6 @@ local success, err = pcall(function()
                             local leadComp = currentVelocity * realTime
                             local dropComp = ESP_Config.GunMods and 0 or (0.5 * workspace.Gravity * (realTime * realTime))
                             
-                            -- Offset Vertikal Dinamis 100% Presisi
                             bestAimTargetPos = targetPart.Position + Vector3.new(0, dynamicVOffset, 0) + leadComp + Vector3.new(0, dropComp, 0)
                         end
                     end
@@ -345,8 +348,7 @@ local success, err = pcall(function()
 
                 newStateCache[entity] = {
                     Char = char, IsPlayer = isPlayer, IsDead = isDead, IsTeam = isTeam,
-                    RootPart = rootPart, Dist = studsDist, IsVisible = isVisible, OnScreen = onScreen, 
-                    Category = categoryStr, VOffset = dynamicVOffset
+                    RootPart = rootPart, Dist = studsDist, IsVisible = isVisible, OnScreen = onScreen
                 }
             end
             
@@ -522,14 +524,14 @@ local success, err = pcall(function()
             if ui.Billboard.Adornee ~= data.RootPart then ui.Billboard.Adornee = data.RootPart end
             if data.IsPlayer and ui.Highlight.Adornee ~= data.Char then ui.Highlight.Adornee = data.Char end
             
-            -- Sinkronisasi Offset UI secara Dinamis berdasarkan Kategori
-            ui.Billboard.StudsOffsetWorldSpace = Vector3.new(0, data.VOffset, 0)
+            -- [REMEDIAL 2] Offset UI sudah dihapus total agar kotak secara alami menempel pada objek RootPart
 
             if data.IsDead then
                 ui.Billboard.Enabled = true
                 ui.Frame.Visible = true
                 ui.FrameStroke.Color = COLOR_DEAD
-                ui.Text.Text = string.format("[%s] %dm", data.Category, distMeter)
+                -- [REMEDIAL 1] Format teks hanya menampilkan jarak meter
+                ui.Text.Text = string.format("[%dm]", distMeter)
                 ui.Text.TextColor3 = COLOR_DEAD
                 ui.IsActive = true
                 poolIndex = poolIndex + 1
@@ -550,7 +552,8 @@ local success, err = pcall(function()
                 end
 
                 ui.Billboard.Enabled = true
-                ui.Text.Text = string.format("[%s] %dm", data.Category, distMeter)
+                -- [REMEDIAL 1] Format teks hanya menampilkan jarak meter
+                ui.Text.Text = string.format("[%dm]", distMeter)
                 ui.Text.TextColor3 = finalColor
                 
                 ui.IsActive = true
@@ -574,4 +577,5 @@ local success, err = pcall(function()
 
 end)
 
-if not success then warn("[Project Delta V8.4 Error]: " .. tostring(err)) end
+if not success then warn("[Project Delta V8.5 Error]: " .. tostring(err)) end
+``` GASS WOK! 🔥🚀

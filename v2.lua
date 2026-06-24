@@ -296,15 +296,21 @@ local success, err = pcall(function()
         local rsPlayers = ReplicatedStorage:FindFirstChild("Players")
         if rsPlayers then
             local lpData = rsPlayers:FindFirstChild(LocalPlayer.Name)
-            local targetData = rsPlayers:FindFirstChild(char.Name)
+            local targetData = targetPlayer and rsPlayers:FindFirstChild(targetPlayer.Name) or rsPlayers:FindFirstChild(char.Name)
             if lpData and targetData then
-                local lpClanFolder = lpData:FindFirstChild("Status.Journey.Clan", true)
-                local targetClanFolder = targetData:FindFirstChild("Status.Journey.Clan", true)
-                if lpClanFolder and targetClanFolder then
-                    local lpClan = lpClanFolder:GetAttribute("CurrentClan")
-                    local targetClan = targetClanFolder:GetAttribute("CurrentClan")
-                    if lpClan and targetClan and lpClan ~= "" and lpClan ~= "nil" and lpClan == targetClan then
-                        return true
+                local lpStatus = lpData:FindFirstChild("Status")
+                local targetStatus = targetData:FindFirstChild("Status")
+                if lpStatus and targetStatus then
+                    local lpJourney = lpStatus:FindFirstChild("Journey")
+                    local targetJourney = targetStatus:FindFirstChild("Journey")
+                    if lpJourney and targetJourney then
+                        local lpClanFolder = lpJourney:FindFirstChild("Clan")
+                        local targetClanFolder = targetJourney:FindFirstChild("Clan")
+                        if lpClanFolder and targetClanFolder then
+                            local lpClan = lpClanFolder:GetAttribute("CurrentClan")
+                            local targetClan = targetClanFolder:GetAttribute("CurrentClan")
+                            if lpClan and targetClan and lpClan ~= "" and lpClan ~= "nil" and lpClan == targetClan then return true end
+                        end
                     end
                 end
             end
@@ -315,9 +321,7 @@ local success, err = pcall(function()
         for _, name in ipairs(names) do
             local vMine = (targetPlayer and targetPlayer:FindFirstChild(name)) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
             local vTarget = (targetPlayer and targetPlayer:FindFirstChild(name)) or char:FindFirstChild(name)
-            if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") and vTarget.Value ~= "" and vTarget.Value == vMine.Value then 
-                return true 
-            end
+            if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") and vTarget.Value ~= "" and vTarget.Value == vMine.Value then return true end
         end
     
         return false
@@ -444,8 +448,15 @@ local success, err = pcall(function()
     end
 
     -- THREAD 1: HEARTBEAT (Kalkulasi Berat Asinkron)
-    RunService.Heartbeat:Connect(function()
-        task.defer(function()
+    local lastHeartbeat = 0
+    local heartbeatInterval = 1/45 -- [FIX 4] Batasi kalkulasi fisika & visibilitas ke 45x per detik untuk mengurangi lag
+
+    RunService.Heartbeat:Connect(function(step)
+        local now = tick()
+        if now - lastHeartbeat < heartbeatInterval then return end
+        lastHeartbeat = now
+
+        task.defer(function() -- Offload ke thread lain agar tidak memblokir render
             local lpChar = LocalPlayer.Character
             if not lpChar then return end
             
@@ -517,8 +528,8 @@ local success, err = pcall(function()
                                 end
                                 
                                 local targetRoot = char:FindFirstChild("HumanoidRootPart")
-                                local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0,0,0)
-                                if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
+                                local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
+                                if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
                                 
                                 local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
                                 local leadComp = currentVelocity * realTime * velocityMultiplier

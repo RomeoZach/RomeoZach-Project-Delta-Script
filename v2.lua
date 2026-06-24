@@ -1,3 +1,27 @@
+--[[
+    ================================================================================
+    --|                                                                            |--
+    --|      PROJECT DELTA V8.7 ULTIMATE - APEX OVERLORD EDITION (REBUILT)         |--
+    --|                 Author  : RomeoZach & Gemini Code Assist                   |--
+    --|                                                                            |--
+    ================================================================================
+    -- Changelog V8.7:
+    -- 1. [FIXED] ESP Hilang Jarak Dekat: Logika rendering dirombak total untuk memastikan
+    --    Highlight tetap terlihat bahkan saat target berada tepat di depan kamera.
+    -- 2. [FIXED] Warna ESP Respawn: Status visibilitas kini dikelola secara ketat
+    --    melalui StateCache, memastikan warna (putih/abu-abu) langsung sesuai
+    --    setelah target respawn.
+    -- 3. [FIXED] ESP Mayat Konsisten: Highlight mayat (ungu) sekarang dijamin akan
+    --    selalu muncul selama berada dalam radius deteksi 100 meter (357 studs).
+    -- 4. [FIXED] AimLock Mati Total: Sistem akuisisi target dan validasi visibilitas
+    --    diperkuat untuk mencegah AimLock berhenti di tengah pertempuran. Target
+    --    akan terus dicari selama tombol bidik ditekan.
+    -- 5. [REWORK] Arsitektur Kode: Mengadopsi sistem Object Pooling untuk visual ESP
+    --    dan memisahkan kalkulasi berat (Heartbeat) dari loop render utama (RenderStep)
+    --    untuk performa yang jauh lebih mulus dan bebas lag.
+--]]
+
+-- Filter Log Error yang tidak relevan
 local LogService = game:GetService("LogService")
 LogService.MessageOut:Connect(function(message, messageType)
     if message:find("TimeLabel") or message:find("GameplayVariables") or message:find("TargetAttachment") then
@@ -6,6 +30,7 @@ LogService.MessageOut:Connect(function(message, messageType)
 end)
 
 local success, err = pcall(function()
+
     -- [[ MODULE 1: CORE CONFIG & UI SETUP ]]
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
@@ -15,6 +40,7 @@ local success, err = pcall(function()
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local LocalPlayer = Players.LocalPlayer
     local Camera = workspace.CurrentCamera
+
     local ESP_Config = {
         AimLock = false, 
         ESP_Players = true, 
@@ -200,7 +226,7 @@ local success, err = pcall(function()
     CreateToggle("Tiny Center Crosshair", "Crosshair")
     CreateToggle("No Recoil & No Spread", "GunMods") 
     CreateToggle("Performance Mode", "PerformanceMode")
-        
+
     -- [[ MODULE 2: INPUT, UTILITIES & OBJECT POOLING ]]
     UserInputService.InputBegan:Connect(function(input, gp)
         if input.KeyCode == Enum.KeyCode.RightShift and not gp then 
@@ -237,6 +263,7 @@ local success, err = pcall(function()
         end
         return defaultSpeed
     end
+
     local function IsEntityDead(char)
         if not char or typeof(char) ~= "Instance" or not char.Parent then return false end
         local hum = char:FindFirstChildOfClass("Humanoid")
@@ -253,6 +280,7 @@ local success, err = pcall(function()
         end
         return false
     end
+
     local function IsTeammate(char)
         if not char then return false end
         local targetPlayer = Players:GetPlayerFromCharacter(char)
@@ -274,6 +302,7 @@ local success, err = pcall(function()
         end
         return false
     end
+
     -- PRE-ALLOCATION MEMORY CACHE (150 Slots - Anti Lag & Anti Freeze)
     local VisualPool = {}
     local MAX_POOL = 150
@@ -290,17 +319,9 @@ local success, err = pcall(function()
         bb.LightInfluence = 0 
         bb.Parent = RomeoZachGui
         
-        local boxFrame = Instance.new("Frame", bb)
-        boxFrame.Size = UDim2.new(1, 0, 1, -20) 
-        boxFrame.BackgroundTransparency = 1 
-        boxFrame.Visible = false
-        
-        local boxStroke = Instance.new("UIStroke", boxFrame) 
-        boxStroke.Thickness = 1.5
-        
         local distTxt = Instance.new("TextLabel", bb)
-        distTxt.Size = UDim2.new(1, 0, 0, 20) 
-        distTxt.Position = UDim2.new(0, 0, 1, -20)
+        distTxt.Size = UDim2.new(1, 0, 1, 0) 
+        distTxt.Position = UDim2.new(0, 0, 0, 0)
         distTxt.BackgroundTransparency = 1 
         distTxt.TextSize = 13 
         distTxt.Font = ESP_Config.Font 
@@ -313,12 +334,11 @@ local success, err = pcall(function()
         table.insert(VisualPool, {
             Highlight = hl, 
             Billboard = bb, 
-            Frame = boxFrame, 
-            FrameStroke = boxStroke, 
             Text = distTxt, 
             IsActive = false
         })
     end
+
     -- [[ MODULE 3: STATE CACHE & DYNAMIC THREAT WEIGHT ]]
     local TrackedEntities = {} 
     local StateCache = {} 
@@ -371,13 +391,14 @@ local success, err = pcall(function()
                    parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or 
                    parentNameLow:find("cabin") or parentNameLow:find("building"))
             
-            if isWallbangMat or isWallbangName or hitInstance.Transparency > 0 then
+            if isWallbangMat or isWallbangName or hitInstance.Transparency > 0.5 then
                 table.insert(ignoreList, parentModel or hitInstance)
             else
                 return false
             end
         end
     end
+
     -- THREAD 1: HEARTBEAT (Kalkulasi Berat Asinkron)
     RunService.Heartbeat:Connect(function()
         task.defer(function()
@@ -406,68 +427,54 @@ local success, err = pcall(function()
                 if not isDead and not ESP_Config.ESP_Players then continue end
                 if isDead and not ESP_Config.ESP_Corpses then continue end
                 
-                -- NIL-SAFE VALIDATION ISLAND (Mencegah script crash saat runtime)
                 local head = char:FindFirstChild("Head") or char:FindFirstChild("head")
                 local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or head
                 if not rootPart or not head then continue end
                 local rootPos = rootPart.Position
                 local studsDist = (rootPos - camPos).Magnitude
                 
-                -- Pengaman Batas Jarak Deteksi Maksimal Dunia (Hingga 1500 Meter)
-                local shouldProcess = false
-                if isDead then 
-                    shouldProcess = (studsDist <= 357.1429)
-                else 
-                    shouldProcess = (studsDist <= 5357.1429) 
+                if (isDead and studsDist > 357.1429) or (not isDead and studsDist > 5357.1429) then
+                    continue
                 end
-                if not shouldProcess then continue end
                 
                 local isTeam = IsTeammate(char)
                 local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 local isVisible = false
                 
-                -- FIX: Target Kepala Murni Tanpa Penumpukan Offset
                 local targetPart = head 
                 local dynamicVOffset = 0 
-                local categoryStr = isDead and "DEAD" or (isPlayer and "PLAYER" or "AI")
+                
                 if not isDead then
                     isVisible = checkTargetVisibility(targetPart, char)
                     
                     if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
                         
-                        -- Pengecekan Radius Lingkaran Bidik (FOV)
                         if screenDist <= ESP_Config.FovRadius then
-                            -- Normalisasi Nilai untuk Kalkulasi Bobot Ancaman
                             local normScreen = screenDist / ESP_Config.FovRadius
                             local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
-                            
-                            -- Menggabungkan Bobot Jarak Dunia dan Jarak Layar (Dynamic Threat Weight)
                             local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
                             
                             if threatScore < lowestThreatScore then
                                 lowestThreatScore = threatScore
                                 
-                                -- Konversi dan Sinkronisasi Kecepatan Peluru Mengikuti Engine Game
                                 local currentBulletSpeed = GetBulletSpeed()
                                 local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
                                 local realTime = studsDist / bulletSpeedStuds
                                 local dropComp = 0
                                 
-                                -- FIX: Gerbang Pengaman Gravitasi Khusus Jarak Jauh (>42 Meter)
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    local dragFactor = 1 + (studsDist / 1200) -- Simulasi hambatan udara sederhana
+                                    local dragFactor = 1 + (studsDist / 1200)
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                 else
-                                    dropComp = 0 -- Jarak dekat otomatis lurus tanpa dorongan ke atas langit
+                                    dropComp = 0
                                 end
-                                -- FIX: Kompensasi Target Bergerak yang Akurat (Lead Compensation)
+                                
                                 local targetRoot = char:FindFirstChild("HumanoidRootPart")
                                 local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0,0,0)
                                 if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
                                 
-                                -- Pengali Prediksi Dinamis (Mencegah Over-Predicting Jarak Dekat)
                                 local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
                                 local leadComp = currentVelocity * realTime * velocityMultiplier
                                 
@@ -488,7 +495,7 @@ local success, err = pcall(function()
             AimDataCache.TargetPos = bestAimTargetPos 
         end)
     end)
-        
+
     -- [[ MODULE 4: ENTITY SCANNER LOOP ]]
     local function IsValidEntity(obj)
         if not obj:IsA("Model") then return false end
@@ -537,15 +544,12 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
-                -- FIX: Pemuatan Replikasi Jaringan Asinkron Jarak Jauh (Struktur Bersih)
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
                     if distToTarget > 1600 and distToTarget <= 5357 then
                         task.spawn(function()
-                            pcall(function()
-                                LocalPlayer:RequestStreamAroundAsync(targetPart.Position)
-                            end)
+                            pcall(LocalPlayer.RequestStreamAroundAsync, LocalPlayer, targetPart.Position)
                         end)
                     end
                 end
@@ -573,11 +577,11 @@ local success, err = pcall(function()
     
     Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
 
-    -- [[ MODULE 5: MISCELLANEOUS SCANNER ]]
+    -- [[ MODULE 5: MISCELLANEOUS & PERFORMANCE SCANNER ]]
     local function InitialPerformanceBoost()
-        pcall(function() 
-            Lighting.FogEnd = 999999 
-            Lighting.FogStart = 999999 
+        pcall(function()
+            Lighting.FogEnd = 999999
+            Lighting.FogStart = 999999
         end)
         for _, obj in ipairs(Lighting:GetDescendants()) do
             pcall(function()
@@ -592,7 +596,7 @@ local success, err = pcall(function()
             local nameLow = obj.Name:lower()
             if nameLow:find("rain") then
                 if obj:IsA("ParticleEmitter") or obj:IsA("Beam") then pcall(function() obj.Enabled = false end)
-                elseif obj:IsA("Sound") then pcall(function() obj.Volume = 0 obj:Stop() end) end
+                elseif obj:IsA("Sound") then pcall(function() obj.Volume = 0; obj:Stop() end) end
             end
         end
     end
@@ -605,8 +609,9 @@ local success, err = pcall(function()
             if ammoTypes then
                 for _, ammo in pairs(ammoTypes:GetChildren()) do
                     if ESP_Config.GunMods then
-                        if not AmmoBackups[ammo] then AmmoBackups[ammo] = { Recoil = ammo:GetAttribute("RecoilStrength"), 
-                            Spread = ammo:GetAttribute("AccuracyDeviation"), Drop = ammo:GetAttribute("ProjectileDrop") } end
+                        if not AmmoBackups[ammo] then 
+                            AmmoBackups[ammo] = { Recoil = ammo:GetAttribute("RecoilStrength"), Spread = ammo:GetAttribute("AccuracyDeviation"), Drop = ammo:GetAttribute("ProjectileDrop") } 
+                        end
                         ammo:SetAttribute("RecoilStrength", 0) 
                         ammo:SetAttribute("AccuracyDeviation", 0) 
                         ammo:SetAttribute("ProjectileDrop", 0)
@@ -638,7 +643,7 @@ local success, err = pcall(function()
                         end
                     end
                 else
-                    Lighting.FogEnd = LightingBackups.FogEnd 
+                    Lighting.FogEnd = LightingBackups.FogEnd
                     Lighting.FogStart = LightingBackups.FogStart
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
@@ -648,11 +653,11 @@ local success, err = pcall(function()
             end
             
             if ESP_Config.PerformanceMode then
-                Lighting.GlobalShadows = false 
-                Lighting.FogEnd = 999999 
-                Lighting.FogStart = 999999 
+                Lighting.GlobalShadows = false
+                Lighting.FogEnd = 999999
+                Lighting.FogStart = 999999
                 Lighting.Brightness = 2.5
-                Lighting.Ambient = Color3.fromRGB(140, 145, 155) 
+                Lighting.Ambient = Color3.fromRGB(140, 145, 155)
                 Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
                 
                 local targetFolders = {Lighting, Camera}
@@ -667,17 +672,19 @@ local success, err = pcall(function()
             end
         end
     end)
+
     -- [[ MODULE 6: ZERO-LAG RENDER LOOP ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function()
         local poolIndex = 1
         local camPos = Camera.CFrame.Position
         
         -- 1. Bersihkan Seluruh Element Visual dari Frame Sebelumnya
-        for _, ui in ipairs(VisualPool) do
-            ui.IsActive = false
-            ui.Highlight.Enabled = false
-            ui.Billboard.Enabled = false
-            ui.Frame.Visible = false
+        for i, ui in ipairs(VisualPool) do
+            if ui.IsActive then
+                ui.IsActive = false
+                ui.Highlight.Enabled = false
+                ui.Billboard.Enabled = false
+            end
         end
         
         -- 2. Iterasi Data Melalui State Cache Hasil Thread Heartbeat
@@ -685,15 +692,53 @@ local success, err = pcall(function()
             if poolIndex > MAX_POOL then break end
             
             local ui = VisualPool[poolIndex]
-            local distMeter = math.floor(data.Dist / 3.5714285714) -- Konversi Studs ke Satuan Meter Game
-            local isCloseRange = (data.Dist <= 3.5714285714)
+            ui.IsActive = true
             
-            -- FIX 1: Reset UI Offset (Kotak ESP Pas Membungkus Badan, Tidak Melayang Lagi)
-            if ui.Billboard.Adornee ~= data.RootPart then 
-                ui.Billboard.Adornee = data.RootPart 
-            end
-            ui.Billboard.StudsOffsetWorldSpace = Vector3.new(0, 0, 0) -- Kunci koordinat pusat tubuh
+            local distMeter = math.floor(data.Dist / 3.5714285714)
             
-            if data.IsPlayer and ui.Highlight.Adornee ~= data.Char then 
-                ui.Highlight.Adornee = data.Char 
+            -- [FIX 1 & 3] Highlight akan selalu aktif jika target harus dirender
+            ui.Highlight.Enabled = true
+            if ui.Highlight.Adornee ~= data.Char then
+                ui.Highlight.Adornee = data.Char
             end
+            
+            -- Atur Billboard
+            ui.Billboard.Enabled = not data.IsDead
+            if not data.IsDead then
+                if ui.Billboard.Adornee ~= data.RootPart then
+                    ui.Billboard.Adornee = data.RootPart
+                end
+                ui.Billboard.StudsOffset = Vector3.new(0, -4.5, 0) -- Posisikan di bawah kaki
+                ui.Text.Text = string.format("[%d m]", distMeter)
+            end
+            
+            -- Atur Warna Berdasarkan Status
+            local finalColor
+            if data.IsDead then
+                finalColor = COLOR_DEAD
+            elseif data.IsTeam then
+                finalColor = data.IsVisible and COLOR_TEAM_VISIBLE or COLOR_TEAM_BLOCKED
+            else
+                finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
+            end
+            
+            ui.Highlight.FillColor = finalColor
+            ui.Highlight.OutlineColor = finalColor
+            ui.Text.TextColor3 = finalColor
+            
+            poolIndex = poolIndex + 1
+        end
+        
+        -- 3. Logika AimLock
+        if ESP_Config.AimLock and IsAiming and AimDataCache.Active then
+            local targetCFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
+            local newCFrame = Camera.CFrame:Lerp(targetCFrame, ESP_Config.Smoothing)
+            Camera.CFrame = newCFrame
+        end
+    end)
+
+end)
+
+if not success then
+    warn("[Project Delta V8.7 Error]: " .. tostring(err))
+end

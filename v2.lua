@@ -406,7 +406,7 @@ local success, err = pcall(function()
                 if isDead and not ESP_Config.ESP_Corpses then continue end
                 
                 -- NIL-SAFE VALIDATION ISLAND (Mencegah script crash saat runtime)
-                local head = char:FindAndReplaceCheck and char:FindFirstChild("Head") or char:FindFirstChild("head") or char:FindFirstChild("Head")
+                local head = char:FindFirstChild("Head") or char:FindFirstChild("head")
                 local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or head
                 if not rootPart or not head then continue end
                 local rootPos = rootPart.Position
@@ -448,13 +448,14 @@ local success, err = pcall(function()
                                 lowestThreatScore = threatScore
                                 
                                 -- Konversi dan Sinkronisasi Kecepatan Peluru Mengikuti Engine Game
-                                local bulletSpeedStuds = (GetBulletSpeed() > 0 and GetBulletSpeed() or 800) * 3.5714285714
+                                local currentBulletSpeed = GetBulletSpeed()
+                                local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
                                 local realTime = studsDist / bulletSpeedStuds
                                 local dropComp = 0
                                 
                                 -- FIX: Gerbang Pengaman Gravitasi Khusus Jarak Jauh (>42 Meter)
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    local dragFactor = 1 + (studsDist / 1200)
+                                    local dragFactor = 1 + (studsDist / 1200) -- Simulasi hambatan udara sederhana
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                 else
@@ -533,14 +534,13 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
-                -- FIX LOGIKA REPLIKASI JARINGAN (Struktur pcall sudah bersih dan rapi)
+                -- FIX: Mekanisme Paksa Replikasi Jaringan Menembus Jarak Streaming (450m -> 1500m)
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
                     if distToTarget > 1600 and distToTarget <= 5357 then
                         task.spawn(function()
-                            pcall(function()
-                                LocalPlayer:RequestStreamAroundAsync(targetPart.Position)
+                            pcall(LocalPlayer.RequestStreamAroundAsync, LocalPlayer, targetPart.Position)
                             end)
                         end)
                     end
@@ -568,15 +568,19 @@ local success, err = pcall(function()
     end)
     
     Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
-
     -- [[ MODULE 5: MISCELLANEOUS SCANNER ]]
     local function InitialPerformanceBoost()
-        pcall(function() Lighting.FogEnd = 999999 Lighting.FogStart = 999999 end)
+        pcall(function() 
+            Lighting.FogEnd = 999999 
+            Lighting.FogStart = 999999 
+        end)
         for _, obj in ipairs(Lighting:GetDescendants()) do
             pcall(function()
-                if obj:IsA("Atmosphere") then obj.Density = 0 elseif obj:IsA("Clouds") then obj.Enabled = false end
-             pcall(function()
-                if obj:IsA("Atmosphere") then obj.Density = 0 elseif obj:IsA("Clouds") then obj.Enabled = false end
+                if obj:IsA("Atmosphere") then 
+                    obj.Density = 0 
+                elseif obj:IsA("Clouds") then 
+                    obj.Enabled = false 
+                end
             end)
         end
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -598,7 +602,8 @@ local success, err = pcall(function()
                     if ESP_Config.GunMods then
                         if not AmmoBackups[ammo] then AmmoBackups[ammo] = { Recoil = ammo:GetAttribute("RecoilStrength"), 
                             Spread = ammo:GetAttribute("AccuracyDeviation"), Drop = ammo:GetAttribute("ProjectileDrop") } end
-                        ammo:SetAttribute("RecoilStrength", 0) ammo:SetAttribute("AccuracyDeviation", 0) 
+                        ammo:SetAttribute("RecoilStrength", 0) 
+                        ammo:SetAttribute("AccuracyDeviation", 0) 
                         ammo:SetAttribute("ProjectileDrop", 0)
                     else
                         local backup = AmmoBackups[ammo]
@@ -628,7 +633,8 @@ local success, err = pcall(function()
                         end
                     end
                 else
-                    Lighting.FogEnd = LightingBackups.FogEnd Lighting.FogStart = LightingBackups.FogStart
+                    Lighting.FogEnd = LightingBackups.FogEnd 
+                    Lighting.FogStart = LightingBackups.FogStart
                     for obj, _ in pairs(DisabledEffects) do
                         if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
                     end
@@ -637,8 +643,12 @@ local success, err = pcall(function()
             end
             
             if ESP_Config.PerformanceMode then
-                Lighting.GlobalShadows = false Lighting.FogEnd = 999999 Lighting.FogStart = 999999 Lighting.Brightness = 2.5
-                Lighting.Ambient = Color3.fromRGB(140, 145, 155) Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
+                Lighting.GlobalShadows = false 
+                Lighting.FogEnd = 999999 
+                Lighting.FogStart = 999999 
+                Lighting.Brightness = 2.5
+                Lighting.Ambient = Color3.fromRGB(140, 145, 155) 
+                Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
                 
                 local targetFolders = {Lighting, Camera}
                 for _, folder in ipairs(targetFolders) do

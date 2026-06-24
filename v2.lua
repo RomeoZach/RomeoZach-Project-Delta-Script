@@ -200,6 +200,7 @@ local success, err = pcall(function()
     CreateToggle("Tiny Center Crosshair", "Crosshair")
     CreateToggle("No Recoil & No Spread", "GunMods") 
     CreateToggle("Performance Mode", "PerformanceMode")
+        
     -- [[ MODULE 2: INPUT, UTILITIES & OBJECT POOLING ]]
     UserInputService.InputBegan:Connect(function(input, gp)
         if input.KeyCode == Enum.KeyCode.RightShift and not gp then 
@@ -487,6 +488,7 @@ local success, err = pcall(function()
             AimDataCache.TargetPos = bestAimTargetPos 
         end)
     end)
+        
     -- [[ MODULE 4: ENTITY SCANNER LOOP ]]
     local function IsValidEntity(obj)
         if not obj:IsA("Model") then return false end
@@ -512,6 +514,7 @@ local success, err = pcall(function()
            nameLower:find("body") then return true end
         return false
     end
+
     local isEntityScanning = false
     task.spawn(function()
         while task.wait(1.0) do 
@@ -534,13 +537,14 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
-                -- FIX: Mekanisme Paksa Replikasi Jaringan Menembus Jarak Streaming (450m -> 1500m)
+                -- FIX: Pemuatan Replikasi Jaringan Asinkron Jarak Jauh (Struktur Bersih)
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
                     if distToTarget > 1600 and distToTarget <= 5357 then
                         task.spawn(function()
-                            pcall(LocalPlayer.RequestStreamAroundAsync, LocalPlayer, targetPart.Position)
+                            pcall(function()
+                                LocalPlayer:RequestStreamAroundAsync(targetPart.Position)
                             end)
                         end)
                     end
@@ -568,6 +572,7 @@ local success, err = pcall(function()
     end)
     
     Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
+
     -- [[ MODULE 5: MISCELLANEOUS SCANNER ]]
     local function InitialPerformanceBoost()
         pcall(function() 

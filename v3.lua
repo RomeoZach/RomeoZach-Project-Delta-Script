@@ -282,24 +282,48 @@ local success, err = pcall(function()
     end
 
     local function IsTeammate(char)
-        if not char then return false end
+        if not char or not char.Parent then return false end
+        
         local targetPlayer = Players:GetPlayerFromCharacter(char)
+    
+        -- Method 1: Direct Player object checks
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
             if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then return true end
-            
-            local names = {"Squad", "Group", "Party", "Faction"}
-            for _, name in ipairs(names) do
-                local vTarget = targetPlayer:FindFirstChild(name) or char:FindFirstChild(name)
-                local vMine = LocalPlayer:FindFirstChild(name) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
-                if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") then
-                    local sTarget, sMine = tostring(vTarget.Value), tostring(vMine.Value)
-                    if sTarget == sMine and #sTarget > 2 and sTarget:lower() ~= "none" and sTarget:lower() ~= "neutral" then 
-                        return true 
+        end
+    
+        -- Method 2: Game-specific Clan check via ReplicatedStorage (from V2)
+        local rsPlayers = ReplicatedStorage:FindFirstChild("Players")
+        if rsPlayers then
+            local lpData = rsPlayers:FindFirstChild(LocalPlayer.Name)
+            local targetData = targetPlayer and rsPlayers:FindFirstChild(targetPlayer.Name) or rsPlayers:FindFirstChild(char.Name)
+            if lpData and targetData then
+                local lpStatus = lpData:FindFirstChild("Status")
+                local targetStatus = targetData:FindFirstChild("Status")
+                if lpStatus and targetStatus then
+                    local lpJourney = lpStatus:FindFirstChild("Journey")
+                    local targetJourney = targetStatus:FindFirstChild("Journey")
+                    if lpJourney and targetJourney then
+                        local lpClanFolder = lpJourney:FindFirstChild("Clan")
+                        local targetClanFolder = targetJourney:FindFirstChild("Clan")
+                        if lpClanFolder and targetClanFolder then
+                            local lpClan = lpClanFolder:GetAttribute("CurrentClan")
+                            local targetClan = targetClanFolder:GetAttribute("CurrentClan")
+                            if lpClan and targetClan and lpClan ~= "" and lpClan ~= "nil" and lpClan == targetClan then return true end
+                        end
                     end
                 end
             end
         end
+    
+        -- Method 3: Generic StringValue check on Player and Character objects
+        local names = {"Squad", "Group", "Party", "Faction"}
+        for _, name in ipairs(names) do
+            local vMine = (targetPlayer and targetPlayer:FindFirstChild(name)) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
+            local vTarget = (targetPlayer and targetPlayer:FindFirstChild(name)) or char:FindFirstChild(name)
+            if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") and vTarget.Value ~= "" and vTarget.Value == vMine.Value then return true end
+        end
+    
         return false
     end
 
@@ -382,6 +406,12 @@ local success, err = pcall(function()
         table.insert(ignoreList, lpChar) 
         table.insert(ignoreList, Camera)
         
+        -- [FIX 3] Mengabaikan zona ekstraksi agar tidak memblokir raycast
+        local extractionFolder = workspace:FindFirstChild("NoCollision") and workspace.NoCollision:FindFirstChild("ExitLocations")
+        if extractionFolder then
+            table.insert(ignoreList, extractionFolder)
+        end
+        
         local ignoreFolder = workspace:FindFirstChild("Ignore") 
         if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
         if targetChar then table.insert(ignoreList, targetChar) end
@@ -418,8 +448,15 @@ local success, err = pcall(function()
     end
 
     -- THREAD 1: HEARTBEAT (Kalkulasi Berat Asinkron)
-    RunService.Heartbeat:Connect(function()
-        task.defer(function()
+    local lastHeartbeat = 0
+    local heartbeatInterval = 1/45 -- [FIX 4] Batasi kalkulasi fisika & visibilitas ke 45x per detik untuk mengurangi lag
+
+    RunService.Heartbeat:Connect(function(step)
+        local now = tick()
+        if now - lastHeartbeat < heartbeatInterval then return end
+        lastHeartbeat = now
+
+        task.defer(function() -- Offload ke thread lain agar tidak memblokir render
             local lpChar = LocalPlayer.Character
             if not lpChar then return end
             
@@ -451,8 +488,8 @@ local success, err = pcall(function()
                 local rootPos = rootPart.Position
                 local studsDist = (rootPos - camPos).Magnitude
                 
-                -- [MODIFIKASI] Jarak deteksi mayat diubah ke 80 meter (285.7 studs)
-                if (isDead and studsDist > 285.7143) or (not isDead and studsDist > 5357.1429) then
+                -- Jarak deteksi mayat diubah menjadi 50 meter (178.5715 studs)
+                if (isDead and studsDist > 178.5715) or (not isDead and studsDist > 5357.1429) then
                     continue
                 end
                 
@@ -483,8 +520,8 @@ local success, err = pcall(function()
                                 local dropComp = 0
                                 
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    -- [FIX] Drag factor disesuaikan untuk akurasi jarak jauh (600m+)
-                                    local dragFactor = 1 + (studsDist / 2500)
+                                    -- [FIX 2] Drag factor disesuaikan kembali untuk presisi ekstrem (600m+)
+                                    local dragFactor = 1 + (studsDist / 6000)
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                 else
@@ -492,8 +529,10 @@ local success, err = pcall(function()
                                 end
                                 
                                 local targetRoot = char:FindFirstChild("HumanoidRootPart")
-                                local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0,0,0)
-                                if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
+                                local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
+                                -- [FIX] Mencegah flick dengan memvalidasi NaN dan angka kecepatan yang tidak wajar
+                                if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
+                                if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
                                 
                                 local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
                                 local leadComp = currentVelocity * realTime * velocityMultiplier
@@ -528,9 +567,6 @@ local success, err = pcall(function()
             nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then 
             return false end
-        if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
-            if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then return false end
-        end
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", 
                             "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do if nameLower:find(kw) then return true end end
@@ -564,6 +600,7 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
+                -- [FIX 4] Meminta game untuk streaming data pemain/AI yang jauh
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
@@ -646,48 +683,17 @@ local success, err = pcall(function()
                     end
                 end
             end
+            -- [OPTIMIZATION] Performa Mode disederhanakan untuk menghilangkan lag saat diaktifkan
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
                 InitialPerformanceBoost()
                 if ESP_Config.PerformanceMode then
-                    local targetFolders = {Lighting, Camera}
-                    for _, folder in ipairs(targetFolders) do
-                        for _, obj in pairs(folder:GetDescendants()) do
-                            if obj:IsA("PostEffect") or obj:IsA("Clouds") or obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
-                                if obj.Enabled then DisabledEffects[obj] = true; obj.Enabled = false end
-                                if obj:IsA("BlurEffect") then obj.Size = 0 end
-                            elseif obj:IsA("Atmosphere") then
-                                if not TextureBackups[obj] then TextureBackups[obj] = {Density = obj.Density} end
-                                obj.Density = 0
-                            end
-                        end
-                    end
+                    Lighting.GlobalShadows = false
+                    Lighting.Brightness = LightingBackups.Brightness + 0.3
                 else
-                    Lighting.FogEnd = LightingBackups.FogEnd
-                    Lighting.FogStart = LightingBackups.FogStart
-                    for obj, _ in pairs(DisabledEffects) do
-                        if obj and obj.Parent then pcall(function() obj.Enabled = true end) end
-                    end
-                    table.clear(DisabledEffects)
-                end
-            end
-            
-            if ESP_Config.PerformanceMode then
-                Lighting.GlobalShadows = false
-                Lighting.FogEnd = 999999
-                Lighting.FogStart = 999999
-                Lighting.Brightness = 2.5
-                Lighting.Ambient = Color3.fromRGB(140, 145, 155)
-                Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155)
-                
-                local targetFolders = {Lighting, Camera}
-                for _, folder in ipairs(targetFolders) do
-                    for _, obj in pairs(folder:GetDescendants()) do
-                        if obj:IsA("BlurEffect") or obj:IsA("DepthOfFieldEffect") then
-                            obj.Enabled = false
-                            if obj:IsA("BlurEffect") then obj.Size = 0 end
-                        end
-                    end
+                    -- Kembalikan ke pengaturan awal yang disimpan saat skrip dimuat
+                    Lighting.GlobalShadows = LightingBackups.GlobalShadows
+                    Lighting.Brightness = LightingBackups.Brightness
                 end
             end
         end
@@ -730,17 +736,15 @@ local success, err = pcall(function()
 
             -- Terapkan visual berdasarkan tipe entitas
             if data.IsDead then
-                -- ESP Mayat: Kotak 2D Ungu dalam jarak 80 meter
-                if data.Dist <= 285.7143 then
-                    ui.BoxBillboard.Enabled = true
-                    ui.BoxBillboard.Adornee = data.RootPart
-                    ui.BoxStroke.Color = finalColor
-                    
-                    ui.Billboard.Enabled = true
-                    ui.Billboard.Adornee = data.RootPart
-                    ui.Text.Text = string.format("[%d m]", distMeter)
-                    ui.Text.TextColor3 = finalColor
-                end
+                -- ESP Mayat: Kotak 2D Ungu. Jarak culling (100m) kini sepenuhnya dikelola oleh Heartbeat.
+                ui.BoxBillboard.Enabled = true
+                ui.BoxBillboard.Adornee = data.RootPart
+                ui.BoxStroke.Color = finalColor
+                
+                ui.Billboard.Enabled = true
+                ui.Billboard.Adornee = data.RootPart
+                ui.Text.Text = string.format("[%d m]", distMeter)
+                ui.Text.TextColor3 = finalColor
             else
                 -- Entitas Hidup
                 if data.IsPlayer then

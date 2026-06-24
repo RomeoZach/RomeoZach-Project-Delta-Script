@@ -282,24 +282,44 @@ local success, err = pcall(function()
     end
 
     local function IsTeammate(char)
-        if not char then return false end
+        if not char or not char.Parent then return false end
+        
         local targetPlayer = Players:GetPlayerFromCharacter(char)
+    
+        -- Method 1: Direct Player object checks
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
             if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then return true end
-            
-            local names = {"Squad", "Group", "Party", "Faction"}
-            for _, name in ipairs(names) do
-                local vTarget = targetPlayer:FindFirstChild(name) or char:FindFirstChild(name)
-                local vMine = LocalPlayer:FindFirstChild(name) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
-                if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") then
-                    local sTarget, sMine = tostring(vTarget.Value), tostring(vMine.Value)
-                    if sTarget == sMine and #sTarget > 2 and sTarget:lower() ~= "none" and sTarget:lower() ~= "neutral" then 
-                        return true 
+        end
+    
+        -- Method 2: Game-specific Clan check via ReplicatedStorage (from V2)
+        local rsPlayers = ReplicatedStorage:FindFirstChild("Players")
+        if rsPlayers then
+            local lpData = rsPlayers:FindFirstChild(LocalPlayer.Name)
+            local targetData = rsPlayers:FindFirstChild(char.Name)
+            if lpData and targetData then
+                local lpClanFolder = lpData:FindFirstChild("Status.Journey.Clan", true)
+                local targetClanFolder = targetData:FindFirstChild("Status.Journey.Clan", true)
+                if lpClanFolder and targetClanFolder then
+                    local lpClan = lpClanFolder:GetAttribute("CurrentClan")
+                    local targetClan = targetClanFolder:GetAttribute("CurrentClan")
+                    if lpClan and targetClan and lpClan ~= "" and lpClan ~= "nil" and lpClan == targetClan then
+                        return true
                     end
                 end
             end
         end
+    
+        -- Method 3: Generic StringValue check on Player and Character objects
+        local names = {"Squad", "Group", "Party", "Faction"}
+        for _, name in ipairs(names) do
+            local vMine = (targetPlayer and targetPlayer:FindFirstChild(name)) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
+            local vTarget = (targetPlayer and targetPlayer:FindFirstChild(name)) or char:FindFirstChild(name)
+            if vTarget and vMine and vTarget:IsA("StringValue") and vMine:IsA("StringValue") and vTarget.Value ~= "" and vTarget.Value == vMine.Value then 
+                return true 
+            end
+        end
+    
         return false
     end
 

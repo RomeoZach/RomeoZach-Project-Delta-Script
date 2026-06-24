@@ -8,8 +8,8 @@ end)
 --[[
     ================================================================================
     --|                                                                            |--
-    --|    PROJECT DELTA V8.5 ULTIMATE - STATE CACHE REMEDIAL EDITION              |--
-    --|    Features: Smart Aim Math, Minimalist UI, Zero-Lag Architecture          |--
+    --|    PROJECT DELTA V8.6 ULTIMATE - APEX PREDATOR EDITION                     |--
+    --|    Features: Dynamic Threat Weight, Lerp Aim Smoothing, Smart Lead Math    |--
     --|                 Author  : RomeoZach                                        |--
     --|                                                                            |--
     ================================================================================
@@ -33,7 +33,11 @@ local success, err = pcall(function()
         BulletTracers = false, Crosshair = false, VisCheck = true,
         GunMods = false, PerformanceMode = false,
         Color = Color3.fromRGB(255, 255, 255), TextSize = 13,
-        Font = Enum.Font.GothamBold, FovRadius = 300
+        Font = Enum.Font.GothamBold, FovRadius = 300,
+        
+        -- [V8.6 NEW] Apex Predator Config
+        Smoothing = 0.15, 
+        ThreatWeights = { DistanceWeight = 0.6, ScreenWeight = 0.4 }
     }
 
     local COLOR_VISIBLE = ESP_Config.Color
@@ -88,7 +92,7 @@ local success, err = pcall(function()
     local MainStroke = Instance.new("UIStroke", MainFrame) MainStroke.Thickness = 1 MainStroke.Color = Color3.fromRGB(45, 48, 53) MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     local Header = Instance.new("TextLabel", MainFrame)
-    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.5 - Pure Combat Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
+    Header.Size = UDim2.new(1, 0, 0, 40) Header.BackgroundTransparency = 1 Header.Text = "Project Delta V8.6 - Apex Predator Edition" Header.TextColor3 = Color3.fromRGB(240, 240, 245) Header.TextSize = 14 Header.Font = Enum.Font.GothamBold Header.TextXAlignment = Enum.TextXAlignment.Center
 
     local ContainerUI = Instance.new("Frame", MainFrame)
     ContainerUI.Size = UDim2.new(1, -20, 1, -45) ContainerUI.Position = UDim2.new(0, 10, 0, 35) ContainerUI.BackgroundTransparency = 1
@@ -208,7 +212,7 @@ local success, err = pcall(function()
         table.insert(VisualPool, {Highlight = hl, Billboard = bb, Frame = boxFrame, FrameStroke = boxStroke, Text = distTxt, IsActive = false})
     end
 
-    -- [[ MODULE 3: STATE CACHE & ASYNC RAYCASTING ]]
+    -- [[ MODULE 3: STATE CACHE & DYNAMIC THREAT WEIGHT ]]
     local TrackedEntities = {} 
     local StateCache = {}      
     local AimDataCache = {Active = false, TargetPos = nil}
@@ -272,7 +276,7 @@ local success, err = pcall(function()
             local camPos = Camera.CFrame.Position
             local centerPos = Camera.ViewportSize / 2
             
-            local shortestPixelDist = ESP_Config.FovRadius
+            local lowestThreatScore = math.huge
             local bestAimTargetPos = nil
             
             local newStateCache = {}
@@ -313,7 +317,6 @@ local success, err = pcall(function()
                 
                 local categoryStr = isDead and "DEAD" or (isPlayer and "PLAYER" or "AI")
                 
-                -- [REMEDIAL 3] Smart AimLock Math: Jika ada kepala, VOffset = 0. Jika RootPart, gunakan dinamis.
                 local dynamicVOffset = 0
                 if head and targetPart == head then
                     dynamicVOffset = 0
@@ -327,21 +330,35 @@ local success, err = pcall(function()
                     
                     if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
-                        if screenDist < shortestPixelDist then
-                            shortestPixelDist = screenDist
+                        
+                        -- [V8.6 UPDATE] Dynamic Threat Score Calculation
+                        if screenDist <= ESP_Config.FovRadius then
+                            -- Normalisasi nilai
+                            local normScreen = screenDist / ESP_Config.FovRadius
+                            local normDist = math.clamp(studsDist / 3000, 0, 1) -- Batas asumsi terjauh 3000 studs
                             
-                            local bulletSpeedStuds = (GetBulletSpeed() > 0 and GetBulletSpeed() or 800) * 3.5714285714
-                            local dragFactor = 1 + (studsDist / 1200)
-                            local realTime = (studsDist / bulletSpeedStuds) * dragFactor
+                            -- Kalkulasi skor (semakin kecil semakin prioritas)
+                            local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
                             
-                            local targetRoot = char:FindFirstChild("HumanoidRootPart")
-                            local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0,0,0)
-                            if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
-                            
-                            local leadComp = currentVelocity * realTime
-                            local dropComp = ESP_Config.GunMods and 0 or (0.5 * workspace.Gravity * (realTime * realTime))
-                            
-                            bestAimTargetPos = targetPart.Position + Vector3.new(0, dynamicVOffset, 0) + leadComp + Vector3.new(0, dropComp, 0)
+                            if threatScore < lowestThreatScore then
+                                lowestThreatScore = threatScore
+                                
+                                local bulletSpeedStuds = (GetBulletSpeed() > 0 and GetBulletSpeed() or 800) * 3.5714285714
+                                local dragFactor = 1 + (studsDist / 1200)
+                                local realTime = (studsDist / bulletSpeedStuds) * dragFactor
+                                
+                                local targetRoot = char:FindFirstChild("HumanoidRootPart")
+                                local currentVelocity = targetRoot and targetRoot.AssemblyLinearVelocity or Vector3.new(0,0,0)
+                                if currentVelocity.X ~= currentVelocity.X then currentVelocity = Vector3.new(0,0,0) end
+                                
+                                local leadComp = currentVelocity * realTime
+                                local dropComp = ESP_Config.GunMods and 0 or (0.5 * workspace.Gravity * (realTime * realTime))
+                                
+                                -- [V8.6 UPDATE] Anti-Dongak Kamera Jarak Dekat
+                                if studsDist < 150 then dropComp = 0 end
+                                
+                                bestAimTargetPos = targetPart.Position + Vector3.new(0, dynamicVOffset, 0) + leadComp + Vector3.new(0, dropComp, 0)
+                            end
                         end
                     end
                 end
@@ -523,14 +540,11 @@ local success, err = pcall(function()
 
             if ui.Billboard.Adornee ~= data.RootPart then ui.Billboard.Adornee = data.RootPart end
             if data.IsPlayer and ui.Highlight.Adornee ~= data.Char then ui.Highlight.Adornee = data.Char end
-            
-            -- [REMEDIAL 2] Offset UI sudah dihapus total agar kotak secara alami menempel pada objek RootPart
 
             if data.IsDead then
                 ui.Billboard.Enabled = true
                 ui.Frame.Visible = true
                 ui.FrameStroke.Color = COLOR_DEAD
-                -- [REMEDIAL 1] Format teks hanya menampilkan jarak meter
                 ui.Text.Text = string.format("[%dm]", distMeter)
                 ui.Text.TextColor3 = COLOR_DEAD
                 ui.IsActive = true
@@ -552,7 +566,6 @@ local success, err = pcall(function()
                 end
 
                 ui.Billboard.Enabled = true
-                -- [REMEDIAL 1] Format teks hanya menampilkan jarak meter
                 ui.Text.Text = string.format("[%dm]", distMeter)
                 ui.Text.TextColor3 = finalColor
                 
@@ -561,8 +574,10 @@ local success, err = pcall(function()
             end
         end
 
+        -- [V8.6 UPDATE] Lerp Aim Smoothing (Humanized Look)
         if ESP_Config.AimLock and IsAiming and AimDataCache.Active and AimDataCache.TargetPos then
-            Camera.CFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
+            local targetCFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, ESP_Config.Smoothing)
         end
     end)
 
@@ -577,5 +592,4 @@ local success, err = pcall(function()
 
 end)
 
-if not success then warn("[Project Delta V8.5 Error]: " .. tostring(err)) end
-``` GASS WOK! 🔥🚀
+if not success then warn("[Project Delta V8.6 Error]: " .. tostring(err)) end

@@ -533,7 +533,7 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
-                -- FIX: Mekanisme Paksa Replikasi Jaringan Menembus Jarak Streaming (450m -> 1500m)
+                -- FIX LOGIKA REPLIKASI JARINGAN (Struktur pcall sudah bersih dan rapi)
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
@@ -541,9 +541,6 @@ local success, err = pcall(function()
                         task.spawn(function()
                             pcall(function()
                                 LocalPlayer:RequestStreamAroundAsync(targetPart.Position)
-                             pcall(function()
-                                    LocalPlayer:RequestStreamAroundAsync(targetPart.Position)
-                                end)
                             end)
                         end)
                     end
@@ -571,6 +568,7 @@ local success, err = pcall(function()
     end)
     
     Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
+
     -- [[ MODULE 5: MISCELLANEOUS SCANNER ]]
     local function InitialPerformanceBoost()
         pcall(function() Lighting.FogEnd = 999999 Lighting.FogStart = 999999 end)

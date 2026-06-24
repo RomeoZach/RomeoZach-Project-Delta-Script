@@ -55,8 +55,8 @@ local success, err = pcall(function()
         Font = Enum.Font.GothamBold, 
         FovRadius = 300,
         
-        -- [V8.7] Apex Predator Config
-        Smoothing = 0.15, 
+        -- [V8.7] Apex Predator Config (Aimlock lebih agresif)
+        Smoothing = 0.45, 
         VelocityMultiplier = 1.35, -- Pengali prediksi gerak target berlari
         ThreatWeights = { DistanceWeight = 0.3, ScreenWeight = 0.7 }
     }
@@ -405,9 +405,9 @@ local success, err = pcall(function()
             local parentNameLow = parentModel and parentModel.Name:lower() or ""
             
             local isWallbangName = (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("glass") or 
-                   nameLow:find("door") or nameLow:find("window") or nameLow:find("fence") or 
-                   parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or 
-                   parentNameLow:find("cabin") or parentNameLow:find("building"))
+                    nameLow:find("door") or nameLow:find("window") or nameLow:find("fence") or 
+                    parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or 
+                    parentNameLow:find("cabin") or parentNameLow:find("building"))
             
             if isWallbangMat or isWallbangName or hitInstance.Transparency > 0.5 then
                 table.insert(ignoreList, parentModel or hitInstance)
@@ -483,7 +483,8 @@ local success, err = pcall(function()
                                 local dropComp = 0
                                 
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    local dragFactor = 1 + (studsDist / 1200)
+                                    -- [FIX] Drag factor disesuaikan untuk akurasi jarak jauh (600m+)
+                                    local dragFactor = 1 + (studsDist / 2500)
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                 else
@@ -523,21 +524,21 @@ local success, err = pcall(function()
         
         local nameLower = string.lower(obj.Name)
         if nameLower:find("crate") or nameLower:find("box") or nameLower:find("cache") or nameLower:find("bag") or 
-           nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or 
-           nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
+            nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or 
+            nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then 
             return false end
         if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
             if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then return false end
         end
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", 
-                             "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
+                            "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do if nameLower:find(kw) then return true end end
         if obj:FindFirstChildOfClass("Tool") or obj:FindFirstChildOfClass("Humanoid") then return true end
         if obj:FindFirstChild("Head") and (obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
-           obj:FindFirstChild("UpperTorso")) then return true end
+            obj:FindFirstChild("UpperTorso")) then return true end
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or 
-           nameLower:find("body") then return true end
+            nameLower:find("body") then return true end
         return false
     end
 
@@ -555,8 +556,8 @@ local success, err = pcall(function()
                 if not obj or not obj:IsA("Model") then return end
                 local nameLow = obj.Name:lower()
                 if nameLow:find("effect") or nameLow:find("bullet") or nameLow:find("tracer") or nameLow:find("poster") or 
-                   nameLow:find("decal") or nameLow:find("sign") or nameLow:find("prop") or nameLow:find("static") or 
-                   nameLow:find("building") or nameLow:find("foliage") then return end
+                    nameLow:find("decal") or nameLow:find("sign") or nameLow:find("prop") or nameLow:find("static") or 
+                    nameLow:find("building") or nameLow:find("foliage") then return end
                 
                 local isPlayerChar = Players:GetPlayerFromCharacter(obj) ~= nil
                 if not isPlayerChar and TrackedEntities[obj] == nil and IsValidEntity(obj) then

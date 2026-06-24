@@ -2,7 +2,7 @@
     ================================================================================
     --|                                                                            |--
     --|      PROJECT DELTA V8.7 ULTIMATE - APEX OVERLORD EDITION (REBUILT)         |--
-    --|                 Author  : RomeoZach & Gemini Code Assist                   |--
+    --|                          Author  : RomeoZach                               |--
     --|                                                                            |--
     ================================================================================
     -- Changelog V8.7:
@@ -55,10 +55,10 @@ local success, err = pcall(function()
         Font = Enum.Font.GothamBold, 
         FovRadius = 300,
         
-        -- [V8.7] Apex Predator Config
-        Smoothing = 0.15, 
+        -- [V8.7] Apex Predator Config (Aimlock lebih agresif)
+        Smoothing = 0.45, 
         VelocityMultiplier = 1.35, -- Pengali prediksi gerak target berlari
-        ThreatWeights = { DistanceWeight = 0.6, ScreenWeight = 0.4 }
+        ThreatWeights = { DistanceWeight = 0.3, ScreenWeight = 0.7 }
     }
     
     local COLOR_VISIBLE = ESP_Config.Color
@@ -331,10 +331,28 @@ local success, err = pcall(function()
         local uiStroke = Instance.new("UIStroke", distTxt) 
         uiStroke.Thickness = 1.5
         
+        -- [MODIFIKASI] Menambahkan elemen untuk Kotak 2D ke dalam pool
+        local boxBb = Instance.new("BillboardGui")
+        boxBb.Enabled = false
+        boxBb.Size = UDim2.new(1.5, 0, 2.5, 0)
+        boxBb.AlwaysOnTop = true
+        boxBb.LightInfluence = 0
+        boxBb.Parent = RomeoZachGui
+
+        local boxFrame = Instance.new("Frame", boxBb)
+        boxFrame.BackgroundTransparency = 1
+        boxFrame.Size = UDim2.new(1, 0, 1, 0)
+
+        local boxStroke = Instance.new("UIStroke", boxFrame)
+        boxStroke.Thickness = 1.5
+        boxStroke.LineJoinMode = Enum.LineJoinMode.Miter
+        
         table.insert(VisualPool, {
             Highlight = hl, 
             Billboard = bb, 
             Text = distTxt, 
+            BoxBillboard = boxBb,
+            BoxStroke = boxStroke,
             IsActive = false
         })
     end
@@ -364,6 +382,12 @@ local success, err = pcall(function()
         table.insert(ignoreList, lpChar) 
         table.insert(ignoreList, Camera)
         
+        -- [FIX 3] Mengabaikan zona ekstraksi agar tidak memblokir raycast
+        local extractionFolder = workspace:FindFirstChild("NoCollision") and workspace.NoCollision:FindFirstChild("ExitLocations")
+        if extractionFolder then
+            table.insert(ignoreList, extractionFolder)
+        end
+        
         local ignoreFolder = workspace:FindFirstChild("Ignore") 
         if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
         if targetChar then table.insert(ignoreList, targetChar) end
@@ -387,9 +411,9 @@ local success, err = pcall(function()
             local parentNameLow = parentModel and parentModel.Name:lower() or ""
             
             local isWallbangName = (nameLow:find("wood") or nameLow:find("plank") or nameLow:find("glass") or 
-                   nameLow:find("door") or nameLow:find("window") or nameLow:find("fence") or 
-                   parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or 
-                   parentNameLow:find("cabin") or parentNameLow:find("building"))
+                    nameLow:find("door") or nameLow:find("window") or nameLow:find("fence") or 
+                    parentNameLow:find("house") or parentNameLow:find("hut") or parentNameLow:find("shack") or 
+                    parentNameLow:find("cabin") or parentNameLow:find("building"))
             
             if isWallbangMat or isWallbangName or hitInstance.Transparency > 0.5 then
                 table.insert(ignoreList, parentModel or hitInstance)
@@ -464,7 +488,8 @@ local success, err = pcall(function()
                                 local dropComp = 0
                                 
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    local dragFactor = 1 + (studsDist / 1200)
+                                    -- [FIX 2] Drag factor disesuaikan kembali untuk presisi ekstrem (600m+)
+                                    local dragFactor = 1 + (studsDist / 6000)
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                 else
@@ -504,21 +529,21 @@ local success, err = pcall(function()
         
         local nameLower = string.lower(obj.Name)
         if nameLower:find("crate") or nameLower:find("box") or nameLower:find("cache") or nameLower:find("bag") or 
-           nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or 
-           nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
+            nameLower:find("satchel") or nameLower:find("register") or nameLower:find("safe") or nameLower:find("vault") or 
+            nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then 
             return false end
         if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
             if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then return false end
         end
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", 
-                             "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
+                            "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do if nameLower:find(kw) then return true end end
         if obj:FindFirstChildOfClass("Tool") or obj:FindFirstChildOfClass("Humanoid") then return true end
         if obj:FindFirstChild("Head") and (obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso") or 
-           obj:FindFirstChild("UpperTorso")) then return true end
+            obj:FindFirstChild("UpperTorso")) then return true end
         if nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll") or nameLower:find("wreck") or 
-           nameLower:find("body") then return true end
+            nameLower:find("body") then return true end
         return false
     end
 
@@ -536,14 +561,15 @@ local success, err = pcall(function()
                 if not obj or not obj:IsA("Model") then return end
                 local nameLow = obj.Name:lower()
                 if nameLow:find("effect") or nameLow:find("bullet") or nameLow:find("tracer") or nameLow:find("poster") or 
-                   nameLow:find("decal") or nameLow:find("sign") or nameLow:find("prop") or nameLow:find("static") or 
-                   nameLow:find("building") or nameLow:find("foliage") then return end
+                    nameLow:find("decal") or nameLow:find("sign") or nameLow:find("prop") or nameLow:find("static") or 
+                    nameLow:find("building") or nameLow:find("foliage") then return end
                 
                 local isPlayerChar = Players:GetPlayerFromCharacter(obj) ~= nil
                 if not isPlayerChar and TrackedEntities[obj] == nil and IsValidEntity(obj) then
                     TrackedEntities[obj] = false 
                 end
                 
+                -- [FIX 4] Meminta game untuk streaming data pemain/AI yang jauh
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
@@ -684,6 +710,7 @@ local success, err = pcall(function()
                 ui.IsActive = false
                 ui.Highlight.Enabled = false
                 ui.Billboard.Enabled = false
+                ui.BoxBillboard.Enabled = false
             end
         end
         
@@ -696,35 +723,51 @@ local success, err = pcall(function()
             
             local distMeter = math.floor(data.Dist / 3.5714285714)
             
-            -- [FIX 1 & 3] Highlight akan selalu aktif jika target harus dirender
-            ui.Highlight.Enabled = true
-            if ui.Highlight.Adornee ~= data.Char then
-                ui.Highlight.Adornee = data.Char
-            end
-            
-            -- Atur Billboard
-            ui.Billboard.Enabled = not data.IsDead
-            if not data.IsDead then
-                if ui.Billboard.Adornee ~= data.RootPart then
-                    ui.Billboard.Adornee = data.RootPart
-                end
-                ui.Billboard.StudsOffset = Vector3.new(0, -4.5, 0) -- Posisikan di bawah kaki
-                ui.Text.Text = string.format("[%d m]", distMeter)
-            end
-            
-            -- Atur Warna Berdasarkan Status
+            -- Tentukan warna utama berdasarkan status
             local finalColor
             if data.IsDead then
                 finalColor = COLOR_DEAD
             elseif data.IsTeam then
+                -- Logika warna tim sudah benar, hijau muda/tua.
                 finalColor = data.IsVisible and COLOR_TEAM_VISIBLE or COLOR_TEAM_BLOCKED
             else
                 finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
             end
-            
-            ui.Highlight.FillColor = finalColor
-            ui.Highlight.OutlineColor = finalColor
-            ui.Text.TextColor3 = finalColor
+
+            -- Terapkan visual berdasarkan tipe entitas
+            if data.IsDead then
+                -- ESP Mayat: Kotak 2D Ungu dalam jarak 80 meter
+                if data.Dist <= 285.7143 then
+                    ui.BoxBillboard.Enabled = true
+                    ui.BoxBillboard.Adornee = data.RootPart
+                    ui.BoxStroke.Color = finalColor
+                    
+                    ui.Billboard.Enabled = true
+                    ui.Billboard.Adornee = data.RootPart
+                    ui.Text.Text = string.format("[%d m]", distMeter)
+                    ui.Text.TextColor3 = finalColor
+                end
+            else
+                -- Entitas Hidup
+                if data.IsPlayer then
+                    -- ESP Player: Chams 3D
+                    ui.Highlight.Enabled = true
+                    ui.Highlight.Adornee = data.Char
+                    ui.Highlight.FillColor = finalColor
+                    ui.Highlight.OutlineColor = finalColor
+                else
+                    -- ESP AI: Kotak 2D
+                    ui.BoxBillboard.Enabled = true
+                    ui.BoxBillboard.Adornee = data.RootPart
+                    ui.BoxStroke.Color = finalColor
+                end
+
+                -- Teks jarak untuk semua entitas hidup
+                ui.Billboard.Enabled = true
+                ui.Billboard.Adornee = data.RootPart
+                ui.Text.Text = string.format("[%d m]", distMeter)
+                ui.Text.TextColor3 = finalColor
+            end
             
             poolIndex = poolIndex + 1
         end

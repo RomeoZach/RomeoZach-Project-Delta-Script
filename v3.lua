@@ -437,7 +437,7 @@ local success, err = pcall(function()
 
     -- THREAD 1: HEARTBEAT
     local lastHeartbeat = 0
-    local heartbeatInterval = 1/45
+    local heartbeatInterval = 1/20 -- [PERFORMANCE FIX] Mengurangi frekuensi kalkulasi berat untuk menghilangkan freeze.
 
     RunService.Heartbeat:Connect(function(step)
         local now = tick()
@@ -476,11 +476,21 @@ local success, err = pcall(function()
                 local rootPos = rootPart.Position
                 local studsDist = (rootPos - camPos).Magnitude
                 
-                if (isDead and studsDist > 178.5715) or (not isDead and studsDist > 5357.1429) then
+                -- [CORPSE ESP FIX] Jarak deteksi mayat dikembalikan ke 100m (357 studs).
+                if (isDead and studsDist > 357) or (not isDead and studsDist > 5357.1429) then
                     continue
                 end
                 
                 local isTeam = IsTeammate(char)
+                
+                -- [CORPSE ESP FIX] Logika untuk memastikan mayat pemain tetap teridentifikasi sebagai pemain.
+                local isActuallyPlayer = isPlayer
+                if not isActuallyPlayer and isDead then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if char.Name:lower():find(p.Name:lower()) then isActuallyPlayer = true; break end
+                    end
+                end
+
                 local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 local isVisible = false
                 
@@ -528,7 +538,7 @@ local success, err = pcall(function()
                 end
                 
                 newStateCache[entity] = {
-                    Char = char, IsPlayer = isPlayer, IsDead = isDead, IsTeam = isTeam,
+                    Char = char, IsPlayer = isActuallyPlayer, IsDead = isDead, IsTeam = isTeam,
                     RootPart = rootPart, Dist = studsDist, IsVisible = isVisible, OnScreen = onScreen
                 }
             end
@@ -717,18 +727,22 @@ local success, err = pcall(function()
                 finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
             end
 
-            if data.IsDead then -- [FIX] Logika render mayat disederhanakan untuk stabilitas maksimum.
-                -- Hanya gambar kotak ungu untuk mayat. Teks jarak dinonaktifkan untuk mencegah konflik render.
+            -- [CORPSE ESP FIX] Kondisi diubah agar hanya menggambar kotak untuk mayat PEMAIN.
+            if data.IsDead and data.IsPlayer then
                 ui.BoxBillboard.Enabled = true
                 ui.BoxBillboard.Adornee = data.RootPart
                 ui.BoxStroke.Color = COLOR_DEAD
             else
-                if data.IsPlayer then
+                -- [OPTIMISASI] Jika rekan tim, matikan Chams/Box dan hanya tampilkan teks jarak.
+                if data.IsTeam then
+                    ui.Highlight.Enabled = false
+                    ui.BoxBillboard.Enabled = false
+                elseif data.IsPlayer then -- Musuh Player
                     ui.Highlight.Enabled = true
                     ui.Highlight.Adornee = data.Char
                     ui.Highlight.FillColor = finalColor
                     ui.Highlight.OutlineColor = finalColor
-                else
+                else -- Musuh AI
                     ui.BoxBillboard.Enabled = true
                     ui.BoxBillboard.Adornee = data.RootPart
                     ui.BoxStroke.Color = finalColor

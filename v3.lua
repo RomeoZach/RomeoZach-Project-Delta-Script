@@ -327,6 +327,24 @@ local success, err = pcall(function()
         return false
     end
 
+    -- [[ PENGGANTI VISUAL MANAGEMENT SYSTEM ]]
+    local ActiveVisuals = {} -- Maps entity -> {PoolIndex, UI}
+
+    local function getVisualForEntity(entity)
+        if ActiveVisuals[entity] then
+            return ActiveVisuals[entity].UI
+        end
+
+        for i, ui in ipairs(VisualPool) do
+            if not ui.IsActive then
+                ui.IsActive = true
+                ActiveVisuals[entity] = { PoolIndex = i, UI = ui }
+                return ui
+            end
+        end
+        return nil -- Pool is full
+    end
+
     -- PRE-ALLOCATION MEMORY CACHE (150 Slots - Anti Lag & Anti Freeze)
     local VisualPool = {}
     local MAX_POOL = 150
@@ -632,7 +650,17 @@ local success, err = pcall(function()
         end
     end)
     
-    Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
+    Players.PlayerRemoving:Connect(function(p) 
+        TrackedEntities[p] = nil 
+        if ActiveVisuals[p] then
+            local vis = ActiveVisuals[p]
+            VisualPool[vis.PoolIndex].IsActive = false
+            vis.UI.Highlight.Enabled = false
+            vis.UI.Billboard.Enabled = false
+            vis.UI.BoxBillboard.Enabled = false
+            ActiveVisuals[p] = nil
+        end
+    end)
 
     -- [[ MODULE 5: MISCELLANEOUS & PERFORMANCE SCANNER ]]
     local function InitialPerformanceBoost()
@@ -701,25 +729,15 @@ local success, err = pcall(function()
 
     -- [[ MODULE 6: ZERO-LAG RENDER LOOP ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function()
-        local poolIndex = 1
         local camPos = Camera.CFrame.Position
-        
-        -- 1. Bersihkan Seluruh Element Visual dari Frame Sebelumnya
-        for i, ui in ipairs(VisualPool) do
-            if ui.IsActive then
-                ui.IsActive = false
-                ui.Highlight.Enabled = false
-                ui.Billboard.Enabled = false
-                ui.BoxBillboard.Enabled = false
-            end
-        end
+        local processedEntities = {}
         
         -- 2. Iterasi Data Melalui State Cache Hasil Thread Heartbeat
         for entity, data in pairs(StateCache) do
-            if poolIndex > MAX_POOL then break end
-            
-            local ui = VisualPool[poolIndex]
-            ui.IsActive = true
+            local ui = getVisualForEntity(entity)
+            if not ui then continue end -- Lewati jika pool penuh
+
+            processedEntities[entity] = true -- Tandai entitas ini sudah diproses
             
             local distMeter = math.floor(data.Dist / 3.5714285714)
             
@@ -728,11 +746,15 @@ local success, err = pcall(function()
             if data.IsDead then
                 finalColor = COLOR_DEAD
             elseif data.IsTeam then
-                -- Logika warna tim sudah benar, hijau muda/tua.
                 finalColor = data.IsVisible and COLOR_TEAM_VISIBLE or COLOR_TEAM_BLOCKED
             else
                 finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
             end
+
+            -- Reset visual sebelum digambar ulang
+            ui.Highlight.Enabled = false
+            ui.Billboard.Enabled = false
+            ui.BoxBillboard.Enabled = false
 
             -- Terapkan visual berdasarkan tipe entitas
             if data.IsDead then
@@ -766,11 +788,21 @@ local success, err = pcall(function()
                 ui.Text.Text = string.format("[%d m]", distMeter)
                 ui.Text.TextColor3 = finalColor
             end
-            
-            poolIndex = poolIndex + 1
+        end
+
+        -- 3. Nonaktifkan visual untuk entitas yang tidak lagi dilacak
+        for entity, visData in pairs(ActiveVisuals) do
+            if not processedEntities[entity] then
+                local ui = visData.UI
+                ui.IsActive = false
+                ui.Highlight.Enabled = false
+                ui.Billboard.Enabled = false
+                ui.BoxBillboard.Enabled = false
+                ActiveVisuals[entity] = nil
+            end
         end
         
-        -- 3. Logika AimLock
+        -- 4. Logika AimLock
         if ESP_Config.AimLock and IsAiming and AimDataCache.Active then
             local targetCFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
             local newCFrame = Camera.CFrame:Lerp(targetCFrame, ESP_Config.Smoothing)
@@ -778,6 +810,22 @@ local success, err = pcall(function()
         end
     end)
 
+    -- [[ MODULE 7: CLEANUP ]]
+    local function PurgeAllGarbageMemory()
+        RunService:UnbindFromRenderStep("RomeoZach_Render")
+        for entity, visData in pairs(ActiveVisuals) do
+            local ui = visData.UI
+            ui.IsActive = false
+            ui.Highlight.Enabled = false
+            ui.Billboard.Enabled = false
+            ui.BoxBillboard.Enabled = false
+        end
+        table.clear(ActiveVisuals)
+        table.clear(TrackedEntities)
+        table.clear(StateCache)
+        if RomeoZachGui then pcall(RomeoZachGui.Destroy, RomeoZachGui) end
+    end
+    game:BindToClose(PurgeAllGarbageMemory)
 end)
 
 if not success then

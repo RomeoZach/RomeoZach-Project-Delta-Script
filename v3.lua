@@ -352,12 +352,14 @@ local success, err = pcall(function()
         local hl = Instance.new("Highlight")
         hl.Enabled = false 
         hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Parent = RomeoZachGui -- [FIX] Revert parenting strategy to match working reference
         
         local bb = Instance.new("BillboardGui")
         bb.Enabled = false 
         bb.Size = UDim2.new(4, 0, 5.5, 0) 
         bb.AlwaysOnTop = true 
         bb.LightInfluence = 0 
+        bb.Parent = RomeoZachGui -- [FIX] Revert parenting strategy
         
         local distTxt = Instance.new("TextLabel", bb)
         distTxt.Size = UDim2.new(1, 0, 1, 0) 
@@ -377,6 +379,7 @@ local success, err = pcall(function()
         boxBb.Size = UDim2.new(1.5, 0, 2.5, 0)
         boxBb.AlwaysOnTop = true
         boxBb.LightInfluence = 0
+        boxBb.Parent = RomeoZachGui -- [FIX] Revert parenting strategy
 
         local boxFrame = Instance.new("Frame", boxBb)
         boxFrame.BackgroundTransparency = 1
@@ -655,9 +658,9 @@ local success, err = pcall(function()
             vis.UI.Highlight.Enabled = false
             vis.UI.Billboard.Enabled = false
             vis.UI.BoxBillboard.Enabled = false
-            vis.UI.Highlight.Parent = nil
-            vis.UI.Billboard.Parent = nil
-            vis.UI.BoxBillboard.Parent = nil
+            vis.UI.Highlight.Adornee = nil -- [FIX] Un-Adornee instead of un-parenting
+            vis.UI.Billboard.Adornee = nil
+            vis.UI.BoxBillboard.Adornee = nil
             ActiveVisuals[p] = nil
         end
     end)
@@ -761,12 +764,10 @@ local success, err = pcall(function()
                 -- ESP Mayat: Kotak 2D Ungu. Jarak culling (100m) kini sepenuhnya dikelola oleh Heartbeat.
                 ui.BoxBillboard.Enabled = true
                 ui.BoxBillboard.Adornee = data.RootPart
-                ui.BoxBillboard.Parent = data.RootPart
                 ui.BoxStroke.Color = finalColor
                 
                 ui.Billboard.Enabled = true
                 ui.Billboard.Adornee = data.RootPart
-                ui.Billboard.Parent = data.RootPart
                 ui.Text.Text = string.format("[%d m]", distMeter)
                 ui.Text.TextColor3 = finalColor
             else
@@ -775,21 +776,18 @@ local success, err = pcall(function()
                     -- ESP Player: Chams 3D
                     ui.Highlight.Enabled = true
                     ui.Highlight.Adornee = data.Char
-                    ui.Highlight.Parent = data.Char
                     ui.Highlight.FillColor = finalColor
                     ui.Highlight.OutlineColor = finalColor
                 else
                     -- ESP AI: Kotak 2D
                     ui.BoxBillboard.Enabled = true
                     ui.BoxBillboard.Adornee = data.RootPart
-                    ui.BoxBillboard.Parent = data.RootPart
                     ui.BoxStroke.Color = finalColor
                 end
 
                 -- Teks jarak untuk semua entitas hidup
                 ui.Billboard.Enabled = true
                 ui.Billboard.Adornee = data.RootPart
-                ui.Billboard.Parent = data.RootPart
                 ui.Text.Text = string.format("[%d m]", distMeter)
                 ui.Text.TextColor3 = finalColor
             end
@@ -803,9 +801,9 @@ local success, err = pcall(function()
                 ui.Highlight.Enabled = false
                 ui.Billboard.Enabled = false
                 ui.BoxBillboard.Enabled = false
-                ui.Highlight.Parent = nil
-                ui.Billboard.Parent = nil
-                ui.BoxBillboard.Parent = nil
+                ui.Highlight.Adornee = nil -- [FIX] Un-Adornee instead of un-parenting
+                ui.Billboard.Adornee = nil
+                ui.BoxBillboard.Adornee = nil
                 ActiveVisuals[entity] = nil
             end
         end
@@ -827,9 +825,9 @@ local success, err = pcall(function()
             ui.Highlight.Enabled = false
             ui.Billboard.Enabled = false
             ui.BoxBillboard.Enabled = false
-            ui.Highlight.Parent = nil
-            ui.Billboard.Parent = nil
-            ui.BoxBillboard.Parent = nil
+            ui.Highlight.Adornee = nil
+            ui.Billboard.Adornee = nil
+            ui.BoxBillboard.Adornee = nil
         end
         table.clear(ActiveVisuals)
         table.clear(TrackedEntities)

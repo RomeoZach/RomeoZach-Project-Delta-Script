@@ -444,109 +444,113 @@ local success, err = pcall(function()
         if now - lastHeartbeat < heartbeatInterval then return end
         lastHeartbeat = now
 
-        task.defer(function()
-            local lpChar = LocalPlayer.Character
-            if not lpChar then return end
+        -- [ESP DISAPPEAR FIX] Menghapus task.defer untuk mencegah potensi masalah pada scheduler yang dapat menyebabkan loop berhenti sementara.
+        local lpChar = LocalPlayer.Character
+        if not lpChar then return end
+        
+        local camPos = Camera.CFrame.Position
+        local centerPos = Camera.ViewportSize / 2
+        
+        local lowestThreatScore = math.huge
+        local bestAimTargetPos = nil
+        local newStateCache = {}
+        
+        for entity, isPlayer in pairs(TrackedEntities) do
+            if not entity or typeof(entity) ~= "Instance" or not entity.Parent then 
+                TrackedEntities[entity] = nil 
+                continue 
+            end
             
-            local camPos = Camera.CFrame.Position
-            local centerPos = Camera.ViewportSize / 2
+            local char = (isPlayer and entity:IsA("Player") and entity.Character) or entity
+            if not char or not char.Parent or char == lpChar then continue end
             
-            local lowestThreatScore = math.huge
-            local bestAimTargetPos = nil
-            local newStateCache = {}
+            local isDead = IsEntityDead(char)
             
-            for entity, isPlayer in pairs(TrackedEntities) do
-                if not entity or typeof(entity) ~= "Instance" or not entity.Parent then 
-                    TrackedEntities[entity] = nil 
-                    continue 
+            if ESP_Config.PerformanceMode and isDead then continue end
+            if not isDead and not ESP_Config.ESP_Players then continue end
+            if isDead and not ESP_Config.ESP_Corpses then continue end
+            
+            local head = char:FindFirstChild("Head") or char:FindFirstChild("head")
+            local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or head
+            if not rootPart or not head then continue end
+            local rootPos = rootPart.Position
+            local studsDist = (rootPos - camPos).Magnitude
+            
+            -- [CORPSE ESP FIX] Jarak deteksi mayat dikembalikan ke 100m (357 studs).
+            if (isDead and studsDist > 357) or (not isDead and studsDist > 5357.1429) then
+                continue
+            end
+            
+            local isTeam = IsTeammate(char)
+            
+            -- [CORPSE ESP FIX] Logika untuk memastikan mayat pemain tetap teridentifikasi sebagai pemain.
+            local isActuallyPlayer = isPlayer
+            if not isActuallyPlayer and isDead then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if char.Name:lower():find(p.Name:lower()) then isActuallyPlayer = true; break end
                 end
-                
-                local char = (isPlayer and entity:IsA("Player") and entity.Character) or entity
-                if not char or not char.Parent or char == lpChar then continue end
-                
-                local isDead = IsEntityDead(char)
-                
-                if ESP_Config.PerformanceMode and isDead then continue end
-                if not isDead and not ESP_Config.ESP_Players then continue end
-                if isDead and not ESP_Config.ESP_Corpses then continue end
-                
-                local head = char:FindFirstChild("Head") or char:FindFirstChild("head")
-                local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or head
-                if not rootPart or not head then continue end
-                local rootPos = rootPart.Position
-                local studsDist = (rootPos - camPos).Magnitude
-                
-                -- [CORPSE ESP FIX] Jarak deteksi mayat dikembalikan ke 100m (357 studs).
-                if (isDead and studsDist > 357) or (not isDead and studsDist > 5357.1429) then
-                    continue
-                end
-                
-                local isTeam = IsTeammate(char)
-                
-                -- [CORPSE ESP FIX] Logika untuk memastikan mayat pemain tetap teridentifikasi sebagai pemain.
-                local isActuallyPlayer = isPlayer
-                if not isActuallyPlayer and isDead then
-                    for _, p in ipairs(Players:GetPlayers()) do
-                        if char.Name:lower():find(p.Name:lower()) then isActuallyPlayer = true; break end
-                    end
-                end
+            end
 
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                local isVisible = false
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            local isVisible = false
+            
+            local targetPart = head 
+            
+            if not isDead then
+                isVisible = checkTargetVisibility(targetPart, char)
                 
-                local targetPart = head 
-                
-                if not isDead then
-                    isVisible = checkTargetVisibility(targetPart, char)
+                if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
+                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
                     
-                    if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
-                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
+                    if screenDist <= ESP_Config.FovRadius then
+                        local normScreen = screenDist / ESP_Config.FovRadius
+                        local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
+                        local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
                         
-                        if screenDist <= ESP_Config.FovRadius then
-                            local normScreen = screenDist / ESP_Config.FovRadius
-                            local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
-                            local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
+                        if threatScore < lowestThreatScore then
+                            lowestThreatScore = threatScore
                             
-                            if threatScore < lowestThreatScore then
-                                lowestThreatScore = threatScore
-                                
-                                local currentBulletSpeed = GetBulletSpeed()
-                                local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
-                                local realTime = studsDist / bulletSpeedStuds
-                                local dropComp = 0
-                                
-                                if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    local dragFactor = 1 + (studsDist / 6000)
-                                    realTime = realTime * dragFactor
-                                    dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
-                                else
-                                    dropComp = 0
-                                end
-                                
-                                local targetRoot = char:FindFirstChild("HumanoidRootPart")
-                                local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
-                                if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
-                                if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
-                                
-                                local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
-                                local leadComp = currentVelocity * realTime * velocityMultiplier
-                                
-                                bestAimTargetPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
+                            local currentBulletSpeed = GetBulletSpeed()
+                            local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
+                            local realTime = studsDist / bulletSpeedStuds
+                            local dropComp = 0
+                            
+                            if studsDist >= 150 and not ESP_Config.GunMods then 
+                                local dragFactor = 1 + (studsDist / 6000)
+                                realTime = realTime * dragFactor
+                                dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
+                            else
+                                dropComp = 0
+                            end
+                            
+                            local targetRoot = char:FindFirstChild("HumanoidRootPart")
+                            local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
+                            if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
+                            if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
+                            
+                            local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
+                            local leadComp = currentVelocity * realTime * velocityMultiplier
+                            
+                            local calculatedPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
+
+                            -- [AIMLOCK FLICK FIX] Sanity check untuk mencegah AimLock mengarah ke koordinat (0,0,0) atau NaN yang tidak valid.
+                            if (calculatedPos.X == calculatedPos.X and calculatedPos.Magnitude > 15) then
+                                bestAimTargetPos = calculatedPos
                             end
                         end
                     end
                 end
-                
-                newStateCache[entity] = {
-                    Char = char, IsPlayer = isActuallyPlayer, IsDead = isDead, IsTeam = isTeam,
-                    RootPart = rootPart, Dist = studsDist, IsVisible = isVisible, OnScreen = onScreen
-                }
             end
             
-            StateCache = newStateCache
-            AimDataCache.Active = (bestAimTargetPos ~= nil)
-            AimDataCache.TargetPos = bestAimTargetPos 
-        end)
+            newStateCache[entity] = {
+                Char = char, IsPlayer = isActuallyPlayer, IsDead = isDead, IsTeam = isTeam,
+                RootPart = rootPart, Dist = studsDist, IsVisible = isVisible, OnScreen = onScreen
+            }
+        end
+        
+        StateCache = newStateCache
+        AimDataCache.Active = (bestAimTargetPos ~= nil)
+        AimDataCache.TargetPos = bestAimTargetPos 
     end)
 
     -- [[ MODULE 4: ENTITY SCANNER LOOP ]]

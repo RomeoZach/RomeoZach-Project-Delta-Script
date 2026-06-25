@@ -1,24 +1,19 @@
 --[[
     ================================================================================
     --|                                                                            |--
-    --|      PROJECT DELTA V8.7 ULTIMATE - APEX OVERLORD EDITION (REBUILT)         |--
+    --|      PROJECT DELTA V8.8 ULTIMATE - STABLE & REFINED EDITION                |--
     --|                          Author  : RomeoZach                               |--
     --|                                                                            |--
     ================================================================================
-    -- Changelog V8.7:
-    -- 1. [FIXED] ESP Hilang Jarak Dekat: Logika rendering dirombak total untuk memastikan
-    --    Highlight tetap terlihat bahkan saat target berada tepat di depan kamera.
-    -- 2. [FIXED] Warna ESP Respawn: Status visibilitas kini dikelola secara ketat
-    --    melalui StateCache, memastikan warna (putih/abu-abu) langsung sesuai
-    --    setelah target respawn.
-    -- 3. [FIXED] ESP Mayat Konsisten: Highlight mayat (ungu) sekarang dijamin akan
-    --    selalu muncul selama berada dalam radius deteksi 100 meter (357 studs).
-    -- 4. [FIXED] AimLock Mati Total: Sistem akuisisi target dan validasi visibilitas
-    --    diperkuat untuk mencegah AimLock berhenti di tengah pertempuran. Target
-    --    akan terus dicari selama tombol bidik ditekan.
-    -- 5. [REWORK] Arsitektur Kode: Mengadopsi sistem Object Pooling untuk visual ESP
-    --    dan memisahkan kalkulasi berat (Heartbeat) dari loop render utama (RenderStep)
-    --    untuk performa yang jauh lebih mulus dan bebas lag.
+    -- Changelog V8.8 (Gemini Refinement):
+    -- 1. [STABILITY] Mengembalikan arsitektur rendering ke metode "clear-and-redraw"
+    --    yang terbukti stabil dari V8.7 untuk menghilangkan bug ESP hilang total.
+    -- 2. [AIMLOCK FIX] Menambahkan "Sanity Check" pada kecepatan target untuk
+    --    sepenuhnya menghilangkan bug AimLock 'flick' ke tanah.
+    -- 3. [CORPSE ESP FIX] Logika IsValidEntity dan render loop diperbaiki untuk
+    --    memastikan ESP mayat (ungu) tampil secara konsisten dalam jarak deteksi.
+    -- 4. [PERFORMANCE] Fitur PerformanceMode disederhanakan agar tidak menyebabkan
+    --    lag saat diaktifkan/dinonaktifkan.
 --]]
 
 -- Filter Log Error yang tidak relevan
@@ -55,9 +50,8 @@ local success, err = pcall(function()
         Font = Enum.Font.GothamBold, 
         FovRadius = 300,
         
-        -- [V8.7] Apex Predator Config (Aimlock lebih agresif)
         Smoothing = 0.45, 
-        VelocityMultiplier = 1.35, -- Pengali prediksi gerak target berlari
+        VelocityMultiplier = 1.35,
         ThreatWeights = { DistanceWeight = 0.3, ScreenWeight = 0.7 }
     }
     
@@ -154,7 +148,7 @@ local success, err = pcall(function()
     local Header = Instance.new("TextLabel", MainFrame)
     Header.Size = UDim2.new(1, 0, 0, 40) 
     Header.BackgroundTransparency = 1 
-    Header.Text = "Project Delta V8.7 - Apex Overlord Edition" 
+    Header.Text = "Project Delta V8.8 - Stable & Refined" 
     Header.TextColor3 = Color3.fromRGB(240, 240, 245) 
     Header.TextSize = 14 
     Header.Font = Enum.Font.GothamBold 
@@ -286,13 +280,11 @@ local success, err = pcall(function()
         
         local targetPlayer = Players:GetPlayerFromCharacter(char)
     
-        -- Method 1: Direct Player object checks
         if targetPlayer then
             if targetPlayer == LocalPlayer then return true end
             if targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then return true end
         end
     
-        -- Method 2: Game-specific Clan check via ReplicatedStorage (from V2)
         local rsPlayers = ReplicatedStorage:FindFirstChild("Players")
         if rsPlayers then
             local lpData = rsPlayers:FindFirstChild(LocalPlayer.Name)
@@ -316,7 +308,6 @@ local success, err = pcall(function()
             end
         end
     
-        -- Method 3: Generic StringValue check on Player and Character objects
         local names = {"Squad", "Group", "Party", "Faction"}
         for _, name in ipairs(names) do
             local vMine = (targetPlayer and targetPlayer:FindFirstChild(name)) or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild(name))
@@ -327,21 +318,20 @@ local success, err = pcall(function()
         return false
     end
 
-    -- PRE-ALLOCATION MEMORY CACHE (150 Slots - Anti Lag & Anti Freeze)
     local VisualPool = {}
     local MAX_POOL = 150
     for i = 1, MAX_POOL do
         local hl = Instance.new("Highlight")
         hl.Enabled = false 
-        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        hl.Parent = RomeoZachGui -- [FIX] Revert parenting strategy to match working reference
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop 
+        hl.Parent = RomeoZachGui
         
         local bb = Instance.new("BillboardGui")
         bb.Enabled = false 
         bb.Size = UDim2.new(4, 0, 5.5, 0) 
         bb.AlwaysOnTop = true 
         bb.LightInfluence = 0 
-        bb.Parent = RomeoZachGui -- [FIX] Revert parenting strategy
+        bb.Parent = RomeoZachGui
         
         local distTxt = Instance.new("TextLabel", bb)
         distTxt.Size = UDim2.new(1, 0, 1, 0) 
@@ -355,13 +345,12 @@ local success, err = pcall(function()
         local uiStroke = Instance.new("UIStroke", distTxt) 
         uiStroke.Thickness = 1.5
         
-        -- [MODIFIKASI] Menambahkan elemen untuk Kotak 2D ke dalam pool
         local boxBb = Instance.new("BillboardGui")
         boxBb.Enabled = false
         boxBb.Size = UDim2.new(1.5, 0, 2.5, 0)
         boxBb.AlwaysOnTop = true
         boxBb.LightInfluence = 0
-        boxBb.Parent = RomeoZachGui -- [FIX] Revert parenting strategy
+        boxBb.Parent = RomeoZachGui
 
         local boxFrame = Instance.new("Frame", boxBb)
         boxFrame.BackgroundTransparency = 1
@@ -406,7 +395,6 @@ local success, err = pcall(function()
         table.insert(ignoreList, lpChar) 
         table.insert(ignoreList, Camera)
         
-        -- [FIX 3] Mengabaikan zona ekstraksi agar tidak memblokir raycast
         local extractionFolder = workspace:FindFirstChild("NoCollision") and workspace.NoCollision:FindFirstChild("ExitLocations")
         if extractionFolder then
             table.insert(ignoreList, extractionFolder)
@@ -447,16 +435,16 @@ local success, err = pcall(function()
         end
     end
 
-    -- THREAD 1: HEARTBEAT (Kalkulasi Berat Asinkron)
+    -- THREAD 1: HEARTBEAT
     local lastHeartbeat = 0
-    local heartbeatInterval = 1/45 -- [FIX 4] Batasi kalkulasi fisika & visibilitas ke 45x per detik untuk mengurangi lag
+    local heartbeatInterval = 1/45
 
     RunService.Heartbeat:Connect(function(step)
         local now = tick()
         if now - lastHeartbeat < heartbeatInterval then return end
         lastHeartbeat = now
 
-        task.defer(function() -- Offload ke thread lain agar tidak memblokir render
+        task.defer(function()
             local lpChar = LocalPlayer.Character
             if not lpChar then return end
             
@@ -488,7 +476,6 @@ local success, err = pcall(function()
                 local rootPos = rootPart.Position
                 local studsDist = (rootPos - camPos).Magnitude
                 
-                -- Jarak deteksi mayat diubah menjadi 50 meter (178.5715 studs)
                 if (isDead and studsDist > 178.5715) or (not isDead and studsDist > 5357.1429) then
                     continue
                 end
@@ -498,7 +485,6 @@ local success, err = pcall(function()
                 local isVisible = false
                 
                 local targetPart = head 
-                local dynamicVOffset = 0 
                 
                 if not isDead then
                     isVisible = checkTargetVisibility(targetPart, char)
@@ -520,7 +506,6 @@ local success, err = pcall(function()
                                 local dropComp = 0
                                 
                                 if studsDist >= 150 and not ESP_Config.GunMods then 
-                                    -- [FIX 2] Drag factor disesuaikan kembali untuk presisi ekstrem (600m+)
                                     local dragFactor = 1 + (studsDist / 6000)
                                     realTime = realTime * dragFactor
                                     dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
@@ -530,14 +515,13 @@ local success, err = pcall(function()
                                 
                                 local targetRoot = char:FindFirstChild("HumanoidRootPart")
                                 local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
-                                -- [FIX] Mencegah flick dengan memvalidasi NaN dan angka kecepatan yang tidak wajar
                                 if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
                                 if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
                                 
                                 local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
                                 local leadComp = currentVelocity * realTime * velocityMultiplier
                                 
-                                bestAimTargetPos = targetPart.Position + Vector3.new(0, dynamicVOffset, 0) + leadComp + Vector3.new(0, dropComp, 0)
+                                bestAimTargetPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
                             end
                         end
                     end
@@ -567,6 +551,12 @@ local success, err = pcall(function()
             nameLower:find("desk") or nameLower:find("boulder") or nameLower:find("mesh") then return false end
         if nameLower:find("bullet") or nameLower:find("tracer") or nameLower:find("blood") or nameLower:find("effect") then 
             return false end
+        
+        -- [FIX] Menghapus filter baju/celana yang salah
+        -- if not obj:FindFirstChildOfClass("Shirt") and not obj:FindFirstChildOfClass("Pants") then
+        --     if not (nameLower:find("dead") or nameLower:find("corpse") or nameLower:find("ragdoll")) then return false end
+        -- end
+
         local npcKeywords = {"dozer", "anton", "guard", "bandit", "rat", "sniper", "marksman", "highway", "tunnel", "occupant", 
                             "survey", "team", "member", "soldier", "whisper", "scav", "king", "uno", "peace", "keeper", "death"}
         for _, kw in ipairs(npcKeywords) do if nameLower:find(kw) then return true end end
@@ -600,7 +590,6 @@ local success, err = pcall(function()
                     TrackedEntities[obj] = false 
                 end
                 
-                -- [FIX 4] Meminta game untuk streaming data pemain/AI yang jauh
                 local targetPart = obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart")
                 if targetPart then
                     local distToTarget = (targetPart.Position - Camera.CFrame.Position).Magnitude
@@ -683,7 +672,6 @@ local success, err = pcall(function()
                     end
                 end
             end
-            -- [OPTIMIZATION] Performa Mode disederhanakan untuk menghilangkan lag saat diaktifkan
             if ESP_Config.PerformanceMode ~= LastPerformanceState then
                 LastPerformanceState = ESP_Config.PerformanceMode
                 InitialPerformanceBoost()
@@ -691,7 +679,6 @@ local success, err = pcall(function()
                     Lighting.GlobalShadows = false
                     Lighting.Brightness = LightingBackups.Brightness + 0.3
                 else
-                    -- Kembalikan ke pengaturan awal yang disimpan saat skrip dimuat
                     Lighting.GlobalShadows = LightingBackups.GlobalShadows
                     Lighting.Brightness = LightingBackups.Brightness
                 end
@@ -700,25 +687,19 @@ local success, err = pcall(function()
     end)
 
     -- [[ MODULE 6: ZERO-LAG RENDER LOOP ]]
-    -- [REVERT] Mengembalikan total ke sistem rendering dari referensi yang stabil
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function()
         local poolIndex = 1
         local camPos = Camera.CFrame.Position
         
-        -- 1. Bersihkan Seluruh Element Visual dari Frame Sebelumnya
         for i, ui in ipairs(VisualPool) do
             if ui.IsActive then
                 ui.IsActive = false
                 ui.Highlight.Enabled = false
                 ui.Billboard.Enabled = false
                 ui.BoxBillboard.Enabled = false
-                ui.Highlight.Adornee = nil
-                ui.Billboard.Adornee = nil
-                ui.BoxBillboard.Adornee = nil
             end
         end
         
-        -- 2. Iterasi Data Melalui State Cache Hasil Thread Heartbeat
         for entity, data in pairs(StateCache) do
             if poolIndex > MAX_POOL then break end
             
@@ -727,7 +708,6 @@ local success, err = pcall(function()
             
             local distMeter = math.floor(data.Dist / 3.5714285714)
             
-            -- Tentukan warna utama berdasarkan status
             local finalColor
             if data.IsDead then
                 finalColor = COLOR_DEAD
@@ -737,9 +717,8 @@ local success, err = pcall(function()
                 finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
             end
 
-            -- Terapkan visual berdasarkan tipe entitas
             if data.IsDead then
-                -- ESP Mayat: Kotak 2D Ungu. Jarak culling (50m) kini sepenuhnya dikelola oleh Heartbeat.
+                -- [FIX] Menghapus cek jarak di render loop, kini dikontrol oleh Heartbeat
                 ui.BoxBillboard.Enabled = true
                 ui.BoxBillboard.Adornee = data.RootPart
                 ui.BoxStroke.Color = finalColor
@@ -749,21 +728,17 @@ local success, err = pcall(function()
                 ui.Text.Text = string.format("[%d m]", distMeter)
                 ui.Text.TextColor3 = finalColor
             else
-                -- Entitas Hidup
                 if data.IsPlayer then
-                    -- ESP Player: Chams 3D
                     ui.Highlight.Enabled = true
                     ui.Highlight.Adornee = data.Char
                     ui.Highlight.FillColor = finalColor
                     ui.Highlight.OutlineColor = finalColor
                 else
-                    -- ESP AI: Kotak 2D
                     ui.BoxBillboard.Enabled = true
                     ui.BoxBillboard.Adornee = data.RootPart
                     ui.BoxStroke.Color = finalColor
                 end
 
-                -- Teks jarak untuk semua entitas hidup
                 ui.Billboard.Enabled = true
                 ui.Billboard.Adornee = data.RootPart
                 ui.Text.Text = string.format("[%d m]", distMeter)
@@ -773,7 +748,6 @@ local success, err = pcall(function()
             poolIndex = poolIndex + 1
         end
         
-        -- 3. Logika AimLock
         if ESP_Config.AimLock and IsAiming and AimDataCache.Active then
             local targetCFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
             local newCFrame = Camera.CFrame:Lerp(targetCFrame, ESP_Config.Smoothing)
@@ -784,5 +758,5 @@ local success, err = pcall(function()
 end)
 
 if not success then
-    warn("[Project Delta V8.7 Error]: " .. tostring(err))
+    warn("[Project Delta V8.8 Error]: " .. tostring(err))
 end

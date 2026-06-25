@@ -717,16 +717,11 @@ local success, err = pcall(function()
                 finalColor = data.IsVisible and COLOR_VISIBLE or COLOR_BLOCKED
             end
 
-            if data.IsDead then
-                -- [FIX] Menghapus cek jarak di render loop, kini dikontrol oleh Heartbeat
+            if data.IsDead then -- [FIX] Logika render mayat disederhanakan untuk stabilitas maksimum.
+                -- Hanya gambar kotak ungu untuk mayat. Teks jarak dinonaktifkan untuk mencegah konflik render.
                 ui.BoxBillboard.Enabled = true
                 ui.BoxBillboard.Adornee = data.RootPart
-                ui.BoxStroke.Color = finalColor
-                
-                ui.Billboard.Enabled = true
-                ui.Billboard.Adornee = data.RootPart
-                ui.Text.Text = string.format("[%d m]", distMeter)
-                ui.Text.TextColor3 = finalColor
+                ui.BoxStroke.Color = COLOR_DEAD
             else
                 if data.IsPlayer then
                     ui.Highlight.Enabled = true

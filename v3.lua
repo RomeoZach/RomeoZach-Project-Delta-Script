@@ -500,42 +500,45 @@ local success, err = pcall(function()
                 isVisible = checkTargetVisibility(targetPart, char)
                 
                 if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
-                    local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
-                    
-                    if screenDist <= ESP_Config.FovRadius then
-                        local normScreen = screenDist / ESP_Config.FovRadius
-                        local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
-                        local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
+                    if onScreen then
+                        local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
                         
-                        if threatScore < lowestThreatScore then
-                            lowestThreatScore = threatScore
+                        -- [AIMLOCK FLICK FIX] Tambahkan pemeriksaan posisi target. Jika target berada di dekat pusat dunia (0,0,0), abaikan.
+                        if screenDist <= ESP_Config.FovRadius and targetPart.Position.Magnitude > 25 then
+                            local normScreen = screenDist / ESP_Config.FovRadius
+                            local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
+                            local threatScore = (normDist * ESP_Config.ThreatWeights.DistanceWeight) + (normScreen * ESP_Config.ThreatWeights.ScreenWeight)
                             
-                            local currentBulletSpeed = GetBulletSpeed()
-                            local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
-                            local realTime = studsDist / bulletSpeedStuds
-                            local dropComp = 0
-                            
-                            if studsDist >= 150 and not ESP_Config.GunMods then 
-                                local dragFactor = 1 + (studsDist / 6000)
-                                realTime = realTime * dragFactor
-                                dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
-                            else
-                                dropComp = 0
-                            end
-                            
-                            local targetRoot = char:FindFirstChild("HumanoidRootPart")
-                            local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
-                            if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
-                            if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
-                            
-                            local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
-                            local leadComp = currentVelocity * realTime * velocityMultiplier
-                            
-                            local calculatedPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
+                            if threatScore < lowestThreatScore then
+                                lowestThreatScore = threatScore
+                                
+                                local currentBulletSpeed = GetBulletSpeed()
+                                local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.5714285714
+                                local realTime = studsDist / bulletSpeedStuds
+                                local dropComp = 0
+                                
+                                if studsDist >= 150 and not ESP_Config.GunMods then 
+                                    local dragFactor = 1 + (studsDist / 6000)
+                                    realTime = realTime * dragFactor
+                                    dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
+                                else
+                                    dropComp = 0
+                                end
+                                
+                                local targetRoot = char:FindFirstChild("HumanoidRootPart")
+                                local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
+                                if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
+                                if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
+                                
+                                local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
+                                local leadComp = currentVelocity * realTime * velocityMultiplier
+                                
+                                local calculatedPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
 
-                            -- [AIMLOCK FLICK FIX] Sanity check untuk mencegah AimLock mengarah ke koordinat (0,0,0) atau NaN yang tidak valid.
-                            if (calculatedPos.X == calculatedPos.X and calculatedPos.Magnitude > 15) then
-                                bestAimTargetPos = calculatedPos
+                                -- Sanity check untuk mencegah AimLock mengarah ke koordinat NaN yang tidak valid.
+                                if (calculatedPos.X == calculatedPos.X) then
+                                    bestAimTargetPos = calculatedPos
+                                end
                             end
                         end
                     end

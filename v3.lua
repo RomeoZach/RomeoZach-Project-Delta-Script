@@ -50,7 +50,11 @@ local success, err = pcall(function()
         Font = Enum.Font.GothamBold, 
         FovRadius = 300,
         
-        Smoothing = 0.45, 
+        -- [AIMLOCK] Dynamic Smoothing Settings
+        Smoothing_Close = 0.7, -- (0-50m) Sangat lengket untuk pertempuran jarak dekat.
+        Smoothing_Mid = 0.45,  -- (50-200m) Seimbang untuk pertempuran jarak menengah.
+        Smoothing_Far = 0.2,   -- (>200m) Halus untuk penyesuaian sniper jarak jauh.
+
         VelocityMultiplier = 1.35,
         ThreatWeights = { DistanceWeight = 0.3, ScreenWeight = 0.7 }
     }
@@ -373,7 +377,9 @@ local success, err = pcall(function()
     -- [[ MODULE 3: STATE CACHE & DYNAMIC THREAT WEIGHT ]]
     local TrackedEntities = {} 
     local StateCache = {} 
-    local AimDataCache = {Active = false, TargetPos = nil}
+    local AimDataCache = {Active = false, TargetPos = nil, TargetDist = 0}
+    local GraveyardCache = {} -- [CORPSE ESP FIX] Cache untuk menyimpan lokasi kematian pemain.
+    local RecentlyDeceased = {} -- Helper cache untuk GraveyardCache.
     
     local sharedRaycastParams = RaycastParams.new()
     sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -451,8 +457,28 @@ local success, err = pcall(function()
         local camPos = Camera.CFrame.Position
         local centerPos = Camera.ViewportSize / 2
         
+        -- [CORPSE ESP FIX] Populate GraveyardCache with recent player death locations.
+        for _, player in ipairs(Players:GetPlayers()) do
+            local pChar = player.Character
+            if pChar and pChar:FindFirstChild("HumanoidRootPart") and pChar:FindFirstChildOfClass("Humanoid") then
+                if pChar.Humanoid.Health <= 0 then
+                    if not RecentlyDeceased[player] then
+                        table.insert(GraveyardCache, { pos = pChar.HumanoidRootPart.Position, time = now })
+                        RecentlyDeceased[player] = true
+                    end
+                else
+                    RecentlyDeceased[player] = nil
+                end
+            else
+                RecentlyDeceased[player] = nil
+            end
+        end
+        -- Clean up old entries from GraveyardCache
+        for i = #GraveyardCache, 1, -1 do if now - GraveyardCache[i].time > 10 then table.remove(GraveyardCache, i) end end
+
         local lowestThreatScore = math.huge
         local bestAimTargetPos = nil
+        local bestAimTargetDist = 0
         local newStateCache = {}
         
         for entity, isPlayer in pairs(TrackedEntities) do
@@ -486,24 +512,47 @@ local success, err = pcall(function()
             -- [CORPSE ESP FIX] Logika untuk memastikan mayat pemain tetap teridentifikasi sebagai pemain.
             local isActuallyPlayer = isPlayer
             if not isActuallyPlayer and isDead then
+                -- Metode 1: Pengecekan nama (cepat, tapi tidak selalu andal).
                 for _, p in ipairs(Players:GetPlayers()) do
                     if char.Name:lower():find(p.Name:lower()) then isActuallyPlayer = true; break end
+                end
+
+                -- Metode 2 (Fallback): Pengecekan posisi dari GraveyardCache (lebih andal).
+                if not isActuallyPlayer then
+                    for i = #GraveyardCache, 1, -1 do
+                        local entry = GraveyardCache[i]
+                        if (rootPos - entry.pos).Magnitude < 2 then -- Jika mayat sangat dekat dengan lokasi kematian yg tercatat
+                            isActuallyPlayer = true
+                            table.remove(GraveyardCache, i) -- Hapus entri agar tidak dicocokkan lagi.
+                            break
+                        end
+                    end
                 end
             end
 
             local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-            local isVisible = false
             
+            -- [PERFORMANCE] Implementasi Level of Detail (LOD) Cerdas untuk Kalkulasi
+            local priority = "Low"
+            if onScreen and studsDist < 2857 then -- ~800 meter
+                local screenDistFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
+                if screenDistFromCenter < ESP_Config.FovRadius * 1.5 then -- Prioritaskan target di dekat tengah layar
+                    priority = "High"
+                else
+                    priority = "Medium"
+                end
+            end
+
+            local isVisible = false
             local targetPart = head 
             
             if not isDead then
-                isVisible = checkTargetVisibility(targetPart, char)
-                
-                if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
-                    if onScreen then
+                if priority == "High" then
+                    -- Kalkulasi Penuh: Untuk target yang paling relevan (dekat & di tengah layar)
+                    isVisible = checkTargetVisibility(targetPart, char)
+                    
+                    if isVisible and not isTeam and ESP_Config.AimLock and IsAiming then
                         local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - centerPos).Magnitude
-                        
-                        -- [AIMLOCK FLICK FIX] Tambahkan pemeriksaan posisi target. Jika target berada di dekat pusat dunia (0,0,0), abaikan.
                         if screenDist <= ESP_Config.FovRadius and targetPart.Position.Magnitude > 25 then
                             local normScreen = screenDist / ESP_Config.FovRadius
                             local normDist = math.clamp(studsDist / 5357.1429, 0, 1)
@@ -529,19 +578,23 @@ local success, err = pcall(function()
                                 local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
                                 if not (currentVelocity.X == currentVelocity.X and currentVelocity.Y == currentVelocity.Y and currentVelocity.Z == currentVelocity.Z) then currentVelocity = Vector3.new(0,0,0) end
                                 if currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
-                                
                                 local velocityMultiplier = (studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier
                                 local leadComp = currentVelocity * realTime * velocityMultiplier
-                                
                                 local calculatedPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
 
-                                -- Sanity check untuk mencegah AimLock mengarah ke koordinat NaN yang tidak valid.
                                 if (calculatedPos.X == calculatedPos.X) then
                                     bestAimTargetPos = calculatedPos
+                                    bestAimTargetDist = studsDist
                                 end
                             end
                         end
                     end
+                elseif priority == "Medium" then
+                    -- Kalkulasi Sedang: Lewati wall check yang berat, anggap terlihat jika di layar.
+                    isVisible = true
+                else -- "Low"
+                    -- Kalkulasi Rendah: Anggap tidak terlihat untuk mengurangi beban render warna.
+                    isVisible = false
                 end
             end
             
@@ -553,7 +606,8 @@ local success, err = pcall(function()
         
         StateCache = newStateCache
         AimDataCache.Active = (bestAimTargetPos ~= nil)
-        AimDataCache.TargetPos = bestAimTargetPos 
+        AimDataCache.TargetPos = bestAimTargetPos
+        AimDataCache.TargetDist = bestAimTargetDist
     end)
 
     -- [[ MODULE 4: ENTITY SCANNER LOOP ]]
@@ -766,7 +820,20 @@ local success, err = pcall(function()
         
         if ESP_Config.AimLock and IsAiming and AimDataCache.Active then
             local targetCFrame = CFrame.lookAt(camPos, AimDataCache.TargetPos)
-            local newCFrame = Camera.CFrame:Lerp(targetCFrame, ESP_Config.Smoothing)
+            
+            -- [AIMLOCK] Implementasi Dynamic Smoothing berdasarkan jarak target
+            local dynamicSmoothing
+            local distInStuds = AimDataCache.TargetDist
+            
+            if distInStuds < 178 then -- Kurang dari ~50 meter
+                dynamicSmoothing = ESP_Config.Smoothing_Close
+            elseif distInStuds < 714 then -- Kurang dari ~200 meter
+                dynamicSmoothing = ESP_Config.Smoothing_Mid
+            else -- Lebih dari 200 meter
+                dynamicSmoothing = ESP_Config.Smoothing_Far
+            end
+
+            local newCFrame = Camera.CFrame:Lerp(targetCFrame, dynamicSmoothing)
             Camera.CFrame = newCFrame
         end
     end)

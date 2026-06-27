@@ -747,11 +747,17 @@ local success, err = pcall(function()
                 LastPerformanceState = ESP_Config.PerformanceMode
                 InitialPerformanceBoost()
                 if ESP_Config.PerformanceMode then
+                    -- [PERFORMANCE] Terapkan pengaturan "Bright Night" untuk visibilitas malam yang lebih baik.
                     Lighting.GlobalShadows = false
-                    Lighting.Brightness = LightingBackups.Brightness + 0.3
+                    Lighting.Brightness = 2.0
+                    Lighting.Ambient = Color3.fromRGB(85, 85, 95)
+                    Lighting.OutdoorAmbient = Color3.fromRGB(85, 85, 95)
                 else
+                    -- Kembalikan semua pengaturan pencahayaan ke nilai aslinya.
                     Lighting.GlobalShadows = LightingBackups.GlobalShadows
                     Lighting.Brightness = LightingBackups.Brightness
+                    Lighting.Ambient = LightingBackups.Ambient
+                    Lighting.OutdoorAmbient = LightingBackups.OutdoorAmbient
                 end
             end
         end

@@ -16,6 +16,8 @@
     --    memastikan tembakan tepat di kepala.
     -- 4. [STABILITY] Menambahkan validasi `RootPart.Parent` sebelum rendering untuk
     --    sepenuhnya menghilangkan bug "bintik-bintik putih" yang jatuh.
+    -- 5. [WALLBANG FIX] Mengimplementasikan ulang logika `checkTargetVisibility` dari referensi
+    --    untuk memastikan fitur wallbang berfungsi secara total dan akurat.
 --]]
 
 -- Filter Log Error yang tidak relevan
@@ -250,29 +252,48 @@ local success, err = pcall(function()
     local ignoreList = {}
     
     local function checkTargetVisibility(targetPart, targetChar)
-        table.clear(ignoreList); local origin = Camera.CFrame.Position; local targetPos = targetPart.Position; local direction = targetPos - origin
+        table.clear(ignoreList)
+        local origin = Camera.CFrame.Position
+        local targetPos = targetPart.Position
+        local direction = targetPos - origin
+
         if direction.Magnitude < 7 or not ESP_Config.VisCheck then return true end
-        local lpChar = LocalPlayer.Character; if not lpChar or not lpChar:FindFirstChild("Head") then return false end
-        table.insert(ignoreList, lpChar); table.insert(ignoreList, Camera)
-        local extractionFolder = workspace:FindFirstChild("NoCollision") and workspace.NoCollision:FindFirstChild("ExitLocations"); if extractionFolder then table.insert(ignoreList, extractionFolder) end
-        local ignoreFolder = workspace:FindFirstChild("Ignore"); if ignoreFolder then table.insert(ignoreList, ignoreFolder) end
+        
+        local lpChar = LocalPlayer.Character
+        if not lpChar or not lpChar:FindFirstChild("Head") then return false end
+        
+        table.insert(ignoreList, lpChar)
+        table.insert(ignoreList, Camera)
         if targetChar then table.insert(ignoreList, targetChar) end
         
-        for i = 1, 4 do
+        local loopCounter = 0
+        while true do
+            loopCounter = loopCounter + 1
+            if loopCounter >= 30 then -- Batas loop ditingkatkan sesuai referensi
+                return false
+            end
+
             sharedRaycastParams.FilterDescendantsInstances = ignoreList
             local raycastResult = workspace:Raycast(origin, direction, sharedRaycastParams)
+
             if not raycastResult then return true end
+            
             local hitInstance = raycastResult.Instance
             if hitInstance:IsA("Terrain") or hitInstance.Name == "Terrain" then return false end
             if hitInstance:IsDescendantOf(targetChar) then return true end
-            local parentModel = hitInstance:FindFirstAncestorOfClass("Model")
-            if WallbangableMaterials[raycastResult.Material] or hitInstance.Transparency > 0.5 then
-                table.insert(ignoreList, parentModel or hitInstance)
+
+            local mat = raycastResult.Material
+            local nameLow = hitInstance.Name:lower()
+            local isNonSolid = hitInstance.Transparency >= 0.8 or not hitInstance.CanCollide
+            local isPenetrableName = nameLow:find("grass") or nameLow:find("glass") or nameLow:find("ignore") or nameLow:find("window") or nameLow:find("fence") or nameLow:find("plant") or nameLow:find("leaf") or nameLow:find("tent")
+            local wallbang = WallbangableMaterials[mat] or isNonSolid or isPenetrableName
+
+            if wallbang then
+                table.insert(ignoreList, hitInstance) -- [FIX] Hanya abaikan bagian yang tertabrak, bukan seluruh modelnya.
             else
                 return false
             end
         end
-        return false
     end
 
     -- THREAD 1: HEARTBEAT (MAIN LOGIC)
@@ -329,12 +350,11 @@ local success, err = pcall(function()
                                     local currentBulletSpeed = GetBulletSpeed(); local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.57
                                     local realTime = studsDist / bulletSpeedStuds; local dropComp = 0
                                     if studsDist >= 150 and not ESP_Config.GunMods then 
-                                        dropComp = 0.5 * workspace.Gravity * (realTime * realTime) -- [AIMLOCK PRECISION FIX] Menghapus 'dragFactor' yang menyebabkan kompensasi berlebihan.
+                                        dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
                                     end
                                     local targetRoot = char:FindFirstChild("HumanoidRootPart"); local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
                                     if not (currentVelocity.X == currentVelocity.X) or currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
                                     local leadComp = currentVelocity * realTime * ((studsDist < 100) and 1.0 or ESP_Config.VelocityMultiplier)
-                                    -- [AIMLOCK PRECISION FIX] Operator matematika dibalik untuk mengkompensasi gravitasi ke atas.
                                     local calculatedPos = targetPart.Position + leadComp + Vector3.new(0, dropComp, 0)
                                     if (calculatedPos.X == calculatedPos.X) then bestAimTargetPos = calculatedPos; bestAimTargetDist = studsDist end
                                 end
@@ -349,7 +369,6 @@ local success, err = pcall(function()
     end)
 
     -- [[ MODULE 4: ENTITY SCANNER LOOP ]]
-    -- [LAG FIX] Fungsi IsValidEntity dibuat super ketat untuk memfilter "sampah".
     local function IsValidEntity(obj)
         if not obj:IsA("Model") or obj:IsDescendantOf(Camera) or (LocalPlayer.Character and obj == LocalPlayer.Character) then return false end
         local nameLower = obj.Name:lower()
@@ -361,7 +380,7 @@ local success, err = pcall(function()
     end
 
     task.spawn(function()
-        while task.wait(1.5) do -- Frekuensi scan dipercepat sedikit
+        while task.wait(1.5) do
             pcall(function()
                 for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and not TrackedEntities[p] then TrackedEntities[p] = true end end
                 for _, child in ipairs(workspace:GetChildren()) do
@@ -422,8 +441,7 @@ local success, err = pcall(function()
 
     -- [[ MODULE 6: ZERO-LAG RENDER LOOP ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function()
-        -- [PERFORMANCE MODE FIX] Logika Bright Night dipindahkan ke sini agar konstan.
-        if ESP_Config.PerformanceMode then -- Menggunakan nilai dari referensi V8.2 untuk kenyamanan visual.
+        if ESP_Config.PerformanceMode then
             Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(140, 145, 155); Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155); Lighting.GlobalShadows = false
             if not LastPerformanceState then LastPerformanceState = true end
         elseif LastPerformanceState then
@@ -436,7 +454,6 @@ local success, err = pcall(function()
         
         for entity, data in pairs(StateCache) do
             if poolIndex > 150 then break end
-            -- [STABILITY FIX] Validasi RootPart sebelum render untuk mencegah error "bintik putih".
             if not data.RootPart or not data.RootPart.Parent then continue end
 
             local ui = VisualPool[poolIndex]; ui.IsActive = true
@@ -451,10 +468,10 @@ local success, err = pcall(function()
                 if data.IsTeam then
                     ui.Highlight.Enabled = false; ui.BoxBillboard.Enabled = false
                 elseif data.IsPlayer then
-                    ui.BoxBillboard.Enabled = false -- Pastikan kotak 2D tidak aktif untuk Player.
+                    ui.BoxBillboard.Enabled = false
                     ui.Highlight.Enabled = true; ui.Highlight.Adornee = data.Char; ui.Highlight.FillColor = finalColor; ui.Highlight.OutlineColor = finalColor
                 else 
-                    ui.Highlight.Enabled = false -- Pastikan Chams 3D tidak aktif untuk AI.
+                    ui.Highlight.Enabled = false
                     ui.BoxBillboard.Enabled = true; ui.BoxBillboard.Adornee = data.RootPart; ui.BoxStroke.Color = finalColor
                 end
                 ui.Billboard.Enabled = true; ui.Billboard.Adornee = data.RootPart

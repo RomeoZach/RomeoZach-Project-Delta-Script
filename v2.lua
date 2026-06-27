@@ -339,8 +339,7 @@ local success, err = pcall(function()
                                     local currentBulletSpeed = GetBulletSpeed(); local bulletSpeedStuds = (currentBulletSpeed > 0 and currentBulletSpeed or 800) * 3.57
                                     local realTime = studsDist / bulletSpeedStuds; local dropComp = 0
                                     if studsDist >= 150 and not ESP_Config.GunMods then 
-                                        realTime = realTime * (1 + (studsDist / 6000))
-                                        dropComp = 0.5 * workspace.Gravity * (realTime * realTime)
+                                        dropComp = 0.5 * workspace.Gravity * (realTime * realTime) -- [AIMLOCK PRECISION FIX] Menghapus 'dragFactor' yang menyebabkan kompensasi berlebihan.
                                     end
                                     local targetRoot = char:FindFirstChild("HumanoidRootPart"); local currentVelocity = (targetRoot and targetRoot.AssemblyLinearVelocity) or Vector3.new(0,0,0)
                                     if not (currentVelocity.X == currentVelocity.X) or currentVelocity.Magnitude > 200 then currentVelocity = Vector3.new(0,0,0) end
@@ -417,8 +416,8 @@ local success, err = pcall(function()
     -- [[ MODULE 6: ZERO-LAG RENDER LOOP ]]
     RunService:BindToRenderStep("RomeoZach_Render", 2005, function()
         -- [PERFORMANCE MODE FIX] Logika Bright Night dipindahkan ke sini agar konstan.
-        if ESP_Config.PerformanceMode then
-            Lighting.Brightness = 2.0; Lighting.Ambient = Color3.fromRGB(85, 85, 95); Lighting.OutdoorAmbient = Color3.fromRGB(85, 85, 95); Lighting.GlobalShadows = false
+        if ESP_Config.PerformanceMode then -- Menggunakan nilai dari referensi V8.2 untuk kenyamanan visual.
+            Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(140, 145, 155); Lighting.OutdoorAmbient = Color3.fromRGB(140, 145, 155); Lighting.GlobalShadows = false
             if not LastPerformanceState then LastPerformanceState = true end
         elseif LastPerformanceState then
             Lighting.Brightness = LightingBackups.Brightness; Lighting.Ambient = LightingBackups.Ambient; Lighting.OutdoorAmbient = LightingBackups.OutdoorAmbient; Lighting.GlobalShadows = LightingBackups.GlobalShadows

@@ -283,16 +283,6 @@ local success, err = pcall(function()
         
         if now - (lastHeartbeat or 0) > 1/20 then
             lastHeartbeat = now
-            for _, player in ipairs(Players:GetPlayers()) do
-                local pChar = player.Character
-                if pChar and pChar:FindFirstChild("HumanoidRootPart") and pChar:FindFirstChildOfClass("Humanoid") then
-                    if pChar.Humanoid.Health <= 0 then
-                        if not RecentlyDeceased[player] then
-                            table.insert(GraveyardCache, { pos = pChar.HumanoidRootPart.Position, time = now }); RecentlyDeceased[player] = true
-                        end
-                    else RecentlyDeceased[player] = nil end
-                else RecentlyDeceased[player] = nil end
-            end
             for i = #GraveyardCache, 1, -1 do if now - GraveyardCache[i].time > 10 then table.remove(GraveyardCache, i) end end
 
             local lowestThreatScore = math.huge; local bestAimTargetPos = nil; local bestAimTargetDist = 0; local newStateCache = {}
@@ -315,7 +305,7 @@ local success, err = pcall(function()
                     if not isActuallyPlayer then
                         for i = #GraveyardCache, 1, -1 do
                             local entry = GraveyardCache[i]
-                            if (rootPos - entry.pos).Magnitude < 2 then isActuallyPlayer = true; table.remove(GraveyardCache, i); break end
+                            if (rootPos - entry.pos).Magnitude < 5 then isActuallyPlayer = true; table.remove(GraveyardCache, i); break end
                         end
                     end
                 end
@@ -386,7 +376,24 @@ local success, err = pcall(function()
             end)
         end
     end)
+
+    local function SetupCharacter(char)
+        if not char then return end
+        local hum = char:WaitForChild("Humanoid", 5)
+        if not hum then return end
+
+        hum.Died:Connect(function()
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                table.insert(GraveyardCache, { pos = root.Position, time = tick() })
+            end
+        end)
+    end
+
+    Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(SetupCharacter) end)
     Players.PlayerRemoving:Connect(function(p) TrackedEntities[p] = nil end)
+    for _, p in ipairs(Players:GetPlayers()) do if p.Character then SetupCharacter(p.Character) end p.CharacterAdded:Connect(SetupCharacter) end
+
 
     -- [[ MODULE 5: MISCELLANEOUS & PERFORMANCE SCANNER ]]
     task.spawn(function()
@@ -444,8 +451,10 @@ local success, err = pcall(function()
                 if data.IsTeam then
                     ui.Highlight.Enabled = false; ui.BoxBillboard.Enabled = false
                 elseif data.IsPlayer then
+                    ui.BoxBillboard.Enabled = false -- Pastikan kotak 2D tidak aktif untuk Player.
                     ui.Highlight.Enabled = true; ui.Highlight.Adornee = data.Char; ui.Highlight.FillColor = finalColor; ui.Highlight.OutlineColor = finalColor
                 else 
+                    ui.Highlight.Enabled = false -- Pastikan Chams 3D tidak aktif untuk AI.
                     ui.BoxBillboard.Enabled = true; ui.BoxBillboard.Adornee = data.RootPart; ui.BoxStroke.Color = finalColor
                 end
                 ui.Billboard.Enabled = true; ui.Billboard.Adornee = data.RootPart
